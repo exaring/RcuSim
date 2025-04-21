@@ -8,7 +8,7 @@
 
 #include "Print.h"
 
-#define BLE_KEYBOARD_VERSION "0.3.0"
+#define BLE_KEYBOARD_VERSION "0.4.0"
 
 /**
  * @brief Keyboard report map.
@@ -118,7 +118,6 @@ private:
   uint16_t pid = 0x820a;
   uint16_t version = 0x0210;
   BLEServer* pServer = nullptr;
-  BLEAddress* peerAddress = nullptr;
   // Callback function for connection events
   typedef std::function<void(String)> ConnectionCallback;
   ConnectionCallback connectCallback = nullptr;
@@ -145,7 +144,6 @@ public:
   void set_product_id(uint16_t pid);
   void set_version(uint16_t version);
   void delay_ms(uint64_t ms);
-  String getPeerAddress(); // Method to read the MAC address of the peer device
   bool disconnect();      // Method to actively disconnect the connection
   bool removeBonding();   // Method to remove all pairings and bondings
   void startAdvertising(); // Method to specifically start advertising

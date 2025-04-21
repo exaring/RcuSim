@@ -482,15 +482,8 @@ size_t BleKeyboard::write(const uint8_t *buffer, size_t size) {
 void BleKeyboard::onConnect(BLEServer* pServer) {
   this->connected = true;
 
-  // For regular BLE, save the MAC address
-  // In newer versions, getPeerAddress() is not directly available
-  // Instead, we need to either access connected client devices
-  // or get the address through other methods
-  if (pServer->getConnectedCount() > 0) {
-    // Save address for later if available
-    // In this version, we only keep the information if connected
-    ESP_LOGI(LOG_TAG, "Paired with a device");
-  }
+  // For regular BLE, log connection
+  ESP_LOGI(LOG_TAG, "Device connected");
 
   BLE2902* desc = (BLE2902*)this->inputKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
   desc->setNotifications(true);
@@ -499,18 +492,15 @@ void BleKeyboard::onConnect(BLEServer* pServer) {
 
   // Callback for external listeners
   if (connectCallback) {
-    connectCallback(getPeerAddress());
+    connectCallback("Connected");
   }
 }
 
 void BleKeyboard::onDisconnect(BLEServer* pServer) {
   this->connected = false;
   
-  // Free MAC address
-  if (peerAddress != nullptr) {
-    delete peerAddress;
-    peerAddress = nullptr;
-  }
+  // Log disconnection
+  ESP_LOGI(LOG_TAG, "Device disconnected");
 
   BLE2902* desc = (BLE2902*)this->inputKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
   desc->setNotifications(false);
@@ -537,20 +527,6 @@ void BleKeyboard::delay_ms(uint64_t ms) {
   }
 }
 
-// Implementierung der neuen Methoden
-
-/**
- * @brief Gibt die MAC-Adresse des verbundenen Geräts zurück
- * 
- * @return String - Die MAC-Adresse als String oder einen leeren String, wenn keine Verbindung besteht
- */
-String BleKeyboard::getPeerAddress() {
-  if (this->connected && peerAddress != nullptr) {
-    return String(peerAddress->toString().c_str());
-  }
-  return String("");
-}
-
 /**
  * @brief Trennt aktiv die Verbindung zum verbundenen Gerät
  * 
@@ -558,10 +534,6 @@ String BleKeyboard::getPeerAddress() {
  */
 bool BleKeyboard::disconnect() {
   if (this->connected && pServer != nullptr) {
-#if defined(USE_NIMBLE)
-    // NimBLE Disconnect-Methode
-    return NimBLEDevice::getServer()->disconnect(peerAddress->getNative());
-#else
     // Standard BLE Disconnect
     // Die Disconnect-Methode gibt void zurück, also prüfen wir nur, ob verbunden ist
     if (pServer->getConnectedCount() > 0) {
@@ -569,7 +541,6 @@ bool BleKeyboard::disconnect() {
       pServer->disconnect(0); // 0 für alle Verbindungen
       return true;
     }
-#endif
   }
   return false;
 }
