@@ -5,6 +5,18 @@
  */
 #include "BleKeyboard.h"
 
+// ================ CONFIGURATION PARAMETERS ================
+// Customize these values to change the device properties
+#define DEVICE_NAME "ESP32 BLE Keyboard"  // Device name shown in Bluetooth settings
+#define MANUFACTURER_NAME "Espressif"     // Manufacturer name
+#define INITIAL_BATTERY_LEVEL 100         // Initial battery level (0-100)
+
+// USB HID parameters
+#define VENDOR_ID 0x05ac                 // Vendor ID (Apple in this example)
+#define PRODUCT_ID 0x820a                // Product ID
+#define VERSION_ID 0x0210                // Version number
+// =========================================================
+
 // Error codes
 #define ERR_PREFIX "ERROR:"
 #define ERR_UNKNOWN_COMMAND 1001
@@ -24,16 +36,17 @@
 #define STATUS_PAIRING 2004
 #define STATUS_PAIRED 2005
 
-BleKeyboard bleKeyboard;
+// Create BLE Keyboard with the configured parameters
+BleKeyboard bleKeyboard(DEVICE_NAME, MANUFACTURER_NAME, INITIAL_BATTERY_LEVEL);
 bool isAdvertising = false;
 
-// Struktur für Tastenmapping
+// Structure for key mapping
 struct KeyMapping {
   const char* name;
   uint8_t keyCode;
 };
 
-// Mapping von String-Namen zu Keycodes
+// Mapping from string names to keycodes
 const KeyMapping keyMappings[] = {
   {"up", KEY_UP_ARROW},
   {"down", KEY_DOWN_ARROW},
@@ -85,7 +98,7 @@ const KeyMapping keyMappings[] = {
 
 const int NUM_KEY_MAPPINGS = sizeof(keyMappings) / sizeof(KeyMapping);
 
-// Funktionsdeklarationen
+// Function declarations
 void processCommand(String command);
 void printError(int errorCode, String message);
 void printStatus(int statusCode, String message);
@@ -106,6 +119,11 @@ void setup() {
     printStatus(STATUS_PAIRED, "Connected to device: " + address);
   });
   
+  // Set USB HID device properties
+  bleKeyboard.set_vendor_id(VENDOR_ID);
+  bleKeyboard.set_product_id(PRODUCT_ID);
+  bleKeyboard.set_version(VERSION_ID);
+  
   // Initialize BLE functionality, but don't start yet
   bleKeyboard.begin();
   
@@ -113,10 +131,27 @@ void setup() {
   delay(500);
   
   Serial.println("System ready. Waiting for commands.");
+  
+  // Print device configuration
+  Serial.println("\n=== Device Configuration ===");
+  Serial.print("Device Name: ");
+  Serial.println(DEVICE_NAME);
+  Serial.print("Manufacturer: ");
+  Serial.println(MANUFACTURER_NAME);
+  Serial.print("Vendor ID: 0x");
+  Serial.println(VENDOR_ID, HEX);
+  Serial.print("Product ID: 0x");
+  Serial.println(PRODUCT_ID, HEX);
+  Serial.print("Version: 0x");
+  Serial.println(VERSION_ID, HEX);
+  Serial.print("Initial Battery Level: ");
+  Serial.print(INITIAL_BATTERY_LEVEL);
+  Serial.println("%");
+  Serial.println("============================\n");
 }
 
 void loop() {
-  // Serielle Befehle verarbeiten
+  // Process serial commands
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
     command.trim();
@@ -126,7 +161,7 @@ void loop() {
     }
   }
   
-  // Periodisch Status prüfen und melden (optional)
+  // Periodically check status and report (optional)
   delay(100);
 }
 
@@ -162,6 +197,27 @@ void processCommand(String command) {
     } else {
       printError(ERR_COMMAND_FAILED, "Could not remove pairing information");
     }
+  }
+  else if (baseCommand == "battery") {
+    // Set battery level: battery <percentage>
+    if (parameter.length() == 0) {
+      printError(ERR_INVALID_PARAMETER, "No battery level specified");
+      return;
+    }
+    
+    int batteryLevel = parameter.toInt();
+    if (batteryLevel < 0 || batteryLevel > 100) {
+      printError(ERR_INVALID_PARAMETER, "Battery level must be between 0 and 100");
+      return;
+    }
+    
+    bleKeyboard.setBatteryLevel(batteryLevel);
+    printStatus(STATUS_OK, "Battery level set to " + String(batteryLevel) + "%");
+  }
+  else if (baseCommand == "reboot") {
+    printStatus(STATUS_OK, "Rebooting device...");
+    delay(500);  // Short delay to ensure message is sent
+    ESP.restart();
   }
   else if (baseCommand == "key") {
     // Format: key <keyname> [delay]
@@ -239,32 +295,33 @@ void processCommand(String command) {
       }
     }
   }
-else if (baseCommand == "release") {
-  if (parameter.length() == 0) {
-    printError(ERR_INVALID_PARAMETER, "No key specified");
-    return;
-  }
-  
-  if (!bleKeyboard.isConnected()) {
-    printError(ERR_NOT_CONNECTED, "Not connected to a host");
-    return;
-  }
-  
-  if (parameter.length() == 1) {
-    // Single character
-    bleKeyboard.release(parameter.charAt(0));
-    printStatus(STATUS_OK, "Key released: " + parameter);
-  } else {
-    // Special key via mapping
-    uint8_t keyCode = getKeyCode(parameter);
-    if (keyCode != 0) {
-      bleKeyboard.release(keyCode);
+  else if (baseCommand == "release") {
+    if (parameter.length() == 0) {
+      printError(ERR_INVALID_PARAMETER, "No key specified");
+      return;
+    }
+    
+    if (!bleKeyboard.isConnected()) {
+      printError(ERR_NOT_CONNECTED, "Not connected to a host");
+      return;
+    }
+    
+    if (parameter.length() == 1) {
+      // Single character
+      bleKeyboard.release(parameter.charAt(0));
       printStatus(STATUS_OK, "Key released: " + parameter);
     } else {
-      printError(ERR_KEY_NOT_FOUND, "Unknown key: " + parameter);
+      // Special key via mapping
+      uint8_t keyCode = getKeyCode(parameter);
+      if (keyCode != 0) {
+        bleKeyboard.release(keyCode);
+        printStatus(STATUS_OK, "Key released: " + parameter);
+      } else {
+        printError(ERR_KEY_NOT_FOUND, "Unknown key: " + parameter);
+      }
     }
   }
-  } else if (baseCommand == "type") {
+  else if (baseCommand == "type") {
     if (parameter.length() == 0) {
       printError(ERR_INVALID_PARAMETER, "No text specified");
       return;
@@ -289,6 +346,9 @@ else if (baseCommand == "release") {
   }
   else if (baseCommand == "diag") {
     printDiagnostics();
+  }
+  else if (baseCommand == "config") {
+    printConfiguration();
   }
   else if (baseCommand == "disconnect") {
     if (!bleKeyboard.isConnected()) {
@@ -335,10 +395,13 @@ void printHelp() {
   Serial.println("type <text>           - Sends a text");
   Serial.println("releaseall            - Releases all pressed keys");
   Serial.println("disconnect            - Terminates the current connection");
+  Serial.println("battery <percentage>  - Sets the reported battery level (0-100)");
+  Serial.println("reboot                - Restarts the device");
   Serial.println("diag                  - Shows diagnostic information");
+  Serial.println("config                - Shows current device configuration");
   Serial.println("\n=== Available Special Keys ===");
   
-  // Alle 5 Sondertasten pro Zeile
+  // Show 5 special keys per line
   int keysPerLine = 5;
   for (int i = 0; i < NUM_KEY_MAPPINGS; i++) {
     Serial.print(keyMappings[i].name);
@@ -360,7 +423,7 @@ uint8_t getKeyCode(String key) {
     }
   }
   
-  return 0; // Nicht gefunden
+  return 0; // Not found
 }
 
 void startAdvertising() {
@@ -407,8 +470,10 @@ void printDiagnostics() {
   Serial.println(isAdvertising ? "Active" : "Inactive");
   
   // Display battery status
-  Serial.print("Battery status: ");
-  Serial.println("100%"); // Actual battery status could be queried here
+  Serial.print("Battery level: ");
+  // Try to get the battery level - we can't directly access the battery level value from here
+  // So we'll show a placeholder message
+  Serial.println("Current configured value"); // This doesn't show the actual value
   
   // Display memory info
   Serial.print("Free memory: ");
@@ -427,4 +492,19 @@ void printDiagnostics() {
   Serial.println(" MHz");
   
   Serial.println("=== End of Diagnostics ===\n");
+}
+
+void printConfiguration() {
+  Serial.println("\n=== Device Configuration ===");
+  Serial.print("Device Name: ");
+  Serial.println(DEVICE_NAME);
+  Serial.print("Manufacturer: ");
+  Serial.println(MANUFACTURER_NAME);
+  Serial.print("Vendor ID: 0x");
+  Serial.println(VENDOR_ID, HEX);
+  Serial.print("Product ID: 0x");
+  Serial.println(PRODUCT_ID, HEX);
+  Serial.print("Version: 0x");
+  Serial.println(VERSION_ID, HEX);
+  Serial.println("============================\n");
 }

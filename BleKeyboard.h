@@ -8,7 +8,7 @@
 
 #include "Print.h"
 
-#define BLE_KEYBOARD_VERSION "0.4.0"
+#define BLE_KEYBOARD_VERSION "0.3.0"
 
 /**
  * @brief Keyboard report map.
