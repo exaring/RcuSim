@@ -6,11 +6,9 @@
 #include "BleKeyboard.h"
 #include "BleKeyboardConfig.h"
 
-
 // Create BLE Keyboard with the configured parameters
 BleKeyboard bleKeyboard(DEVICE_NAME, MANUFACTURER_NAME, INITIAL_BATTERY_LEVEL);
 bool isAdvertising = false;
-
 
 void setup() {
   Serial.begin(115200);
@@ -37,21 +35,7 @@ void setup() {
   Serial.println("System ready. Waiting for commands.");
   
   // Print device configuration
-  Serial.println("\n=== Device Configuration ===");
-  Serial.print("Device Name: ");
-  Serial.println(DEVICE_NAME);
-  Serial.print("Manufacturer: ");
-  Serial.println(MANUFACTURER_NAME);
-  Serial.print("Vendor ID: 0x");
-  Serial.println(VENDOR_ID, HEX);
-  Serial.print("Product ID: 0x");
-  Serial.println(PRODUCT_ID, HEX);
-  Serial.print("Version: 0x");
-  Serial.println(VERSION_ID, HEX);
-  Serial.print("Initial Battery Level: ");
-  Serial.print(INITIAL_BATTERY_LEVEL);
-  Serial.println("%");
-  Serial.println("============================\n");
+  printConfiguration();
 }
 
 void loop() {
@@ -154,7 +138,18 @@ void processCommand(String command) {
     
     // Determine key and press
     uint8_t keyCode = 0;
-    if (keyName.length() == 1) {
+    
+    // Check if keyName is a hex value (format: 0xXX)
+    if (keyName.startsWith("0x") && keyName.length() > 2) {
+      // Convert hex string to integer
+      char* endPtr;
+      keyCode = (uint8_t)strtol(keyName.c_str(), &endPtr, 16);
+      if (*endPtr != '\0') {
+        // Conversion failed
+        printError(ERR_INVALID_PARAMETER, "Invalid hex key code: " + keyName);
+        return;
+      }
+    } else if (keyName.length() == 1) {
       // Single character
       keyCode = keyName.charAt(0);
     } else {
@@ -184,7 +179,20 @@ void processCommand(String command) {
       return;
     }
     
-    if (parameter.length() == 1) {
+    // Check if parameter is a hex value (format: 0xXX)
+    if (parameter.startsWith("0x") && parameter.length() > 2) {
+      // Convert hex string to integer
+      char* endPtr;
+      uint8_t keyCode = (uint8_t)strtol(parameter.c_str(), &endPtr, 16);
+      if (*endPtr != '\0') {
+        // Conversion failed
+        printError(ERR_INVALID_PARAMETER, "Invalid hex key code: " + parameter);
+        return;
+      }
+      
+      bleKeyboard.press(keyCode);
+      printStatus(STATUS_OK, "Key pressed: 0x" + String(keyCode, HEX));
+    } else if (parameter.length() == 1) {
       // Single character
       bleKeyboard.press(parameter.charAt(0));
       printStatus(STATUS_OK, "Key pressed: " + parameter);
@@ -210,7 +218,20 @@ void processCommand(String command) {
       return;
     }
     
-    if (parameter.length() == 1) {
+    // Check if parameter is a hex value (format: 0xXX)
+    if (parameter.startsWith("0x") && parameter.length() > 2) {
+      // Convert hex string to integer
+      char* endPtr;
+      uint8_t keyCode = (uint8_t)strtol(parameter.c_str(), &endPtr, 16);
+      if (*endPtr != '\0') {
+        // Conversion failed
+        printError(ERR_INVALID_PARAMETER, "Invalid hex key code: " + parameter);
+        return;
+      }
+      
+      bleKeyboard.release(keyCode);
+      printStatus(STATUS_OK, "Key released: 0x" + String(keyCode, HEX));
+    } else if (parameter.length() == 1) {
       // Single character
       bleKeyboard.release(parameter.charAt(0));
       printStatus(STATUS_OK, "Key released: " + parameter);
@@ -293,8 +314,8 @@ void printHelp() {
   Serial.println("pair                  - Activates pairing mode and starts BLE advertising");
   Serial.println("stoppair / stop       - Stops BLE advertising");
   Serial.println("unpair                - Removes all stored pairings");
-  Serial.println("press <key>           - Presses a key");
-  Serial.println("release <key>         - Releases a key");
+  Serial.println("press <key>           - Presses a key (can use name, character, or 0xXX format)");
+  Serial.println("release <key>         - Releases a key (can use name, character, or 0xXX format)");
   Serial.println("key <key> [delay]     - Presses a key and releases it after delay ms (default: 50ms)");
   Serial.println("type <text>           - Sends a text");
   Serial.println("releaseall            - Releases all pressed keys");
@@ -303,7 +324,11 @@ void printHelp() {
   Serial.println("reboot                - Restarts the device");
   Serial.println("diag                  - Shows diagnostic information");
   Serial.println("config                - Shows current device configuration");
-  Serial.println("\n=== Available Special Keys ===");
+  Serial.println("\n=== Key Formats ===");
+  Serial.println("- Single character    - Example: a, B, 7");
+  Serial.println("- Named key           - Example: enter, f1, up, space");
+  Serial.println("- Hex value           - Example: 0x28, 0xE2, 0x1A");
+  Serial.println("\n=== Available Named Keys ===");
   
   // Show 5 special keys per line
   int keysPerLine = 5;
@@ -403,5 +428,8 @@ void printConfiguration() {
   Serial.println(PRODUCT_ID, HEX);
   Serial.print("Version: 0x");
   Serial.println(VERSION_ID, HEX);
+  Serial.print("Initial Battery Level: ");
+  Serial.print(INITIAL_BATTERY_LEVEL);
+  Serial.println("%");
   Serial.println("============================\n");
 }
