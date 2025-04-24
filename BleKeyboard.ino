@@ -136,6 +136,33 @@ void processCommand(String command) {
       keyName = parameter;
     }
     
+    // Check if the key is a media key
+    if (isMediaKey(keyName)) {
+      uint16_t mediaKeyCode = getMediaKeyCode(keyName);
+      if (mediaKeyCode != 0) {
+        // Create a MediaKeyReport and set the appropriate bit
+        MediaKeyReport mediaKeyReport = {0, 0};
+        
+        if (mediaKeyCode > 0x80) {
+          // The key is in the second byte (high byte)
+          mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
+          mediaKeyReport[1] = 0;
+        } else {
+          // The key is in the first byte (low byte)
+          mediaKeyReport[0] = 0;
+          mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
+        }
+        
+        // Press, wait, and release
+        bleKeyboard.press(mediaKeyReport);
+        delay(keyDelay);
+        bleKeyboard.release(mediaKeyReport);
+        
+        printStatus(STATUS_OK, "Media key '" + keyName + "' pressed and released after " + String(keyDelay) + "ms");
+        return;
+      }
+    }
+    
     // Determine key and press
     uint8_t keyCode = 0;
     
@@ -179,6 +206,29 @@ void processCommand(String command) {
       return;
     }
     
+    // Check if the key is a media key
+    if (isMediaKey(parameter)) {
+      uint16_t mediaKeyCode = getMediaKeyCode(parameter);
+      if (mediaKeyCode != 0) {
+        // Create a MediaKeyReport and set the appropriate bit
+        MediaKeyReport mediaKeyReport = {0, 0};
+        
+        if (mediaKeyCode > 0x80) {
+          // The key is in the second byte (high byte)
+          mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
+          mediaKeyReport[1] = 0;
+        } else {
+          // The key is in the first byte (low byte)
+          mediaKeyReport[0] = 0;
+          mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
+        }
+        
+        bleKeyboard.press(mediaKeyReport);
+        printStatus(STATUS_OK, "Media key pressed: " + parameter);
+        return;
+      }
+    }
+    
     // Check if parameter is a hex value (format: 0xXX)
     if (parameter.startsWith("0x") && parameter.length() > 2) {
       // Convert hex string to integer
@@ -216,6 +266,29 @@ void processCommand(String command) {
     if (!bleKeyboard.isConnected()) {
       printError(ERR_NOT_CONNECTED, "Not connected to a host");
       return;
+    }
+    
+    // Check if the key is a media key
+    if (isMediaKey(parameter)) {
+      uint16_t mediaKeyCode = getMediaKeyCode(parameter);
+      if (mediaKeyCode != 0) {
+        // Create a MediaKeyReport and set the appropriate bit
+        MediaKeyReport mediaKeyReport = {0, 0};
+        
+        if (mediaKeyCode > 0x80) {
+          // The key is in the second byte (high byte)
+          mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
+          mediaKeyReport[1] = 0;
+        } else {
+          // The key is in the first byte (low byte)
+          mediaKeyReport[0] = 0;
+          mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
+        }
+        
+        bleKeyboard.release(mediaKeyReport);
+        printStatus(STATUS_OK, "Media key released: " + parameter);
+        return;
+      }
     }
     
     // Check if parameter is a hex value (format: 0xXX)
@@ -327,14 +400,27 @@ void printHelp() {
   Serial.println("\n=== Key Formats ===");
   Serial.println("- Single character    - Example: a, B, 7");
   Serial.println("- Named key           - Example: enter, f1, up, space");
+  Serial.println("- Media key           - Example: playpause, mute, volumeup");
   Serial.println("- Hex value           - Example: 0x28, 0xE2, 0x1A");
-  Serial.println("\n=== Available Named Keys ===");
   
+  Serial.println("\n=== Available Regular Keys ===");
   // Show 5 special keys per line
   int keysPerLine = 5;
   for (int i = 0; i < NUM_KEY_MAPPINGS; i++) {
     Serial.print(keyMappings[i].name);
     if ((i + 1) % keysPerLine != 0 && i < NUM_KEY_MAPPINGS - 1) {
+      Serial.print(", ");
+    } else {
+      Serial.println();
+    }
+  }
+  
+  Serial.println("\n=== Available Media Keys ===");
+  // Show 4 media keys per line
+  keysPerLine = 4;
+  for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
+    Serial.print(mediaKeyMappings[i].name);
+    if ((i + 1) % keysPerLine != 0 && i < NUM_MEDIA_KEY_MAPPINGS - 1) {
       Serial.print(", ");
     } else {
       Serial.println();
@@ -353,6 +439,31 @@ uint8_t getKeyCode(String key) {
   }
   
   return 0; // Not found
+}
+
+uint16_t getMediaKeyCode(String key) {
+  key.toLowerCase();
+  
+  for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
+    if (key.equals(mediaKeyMappings[i].name)) {
+      return mediaKeyMappings[i].keyCode;
+    }
+  }
+  
+  return 0; // Not found
+}
+
+bool isMediaKey(String key) {
+  key.toLowerCase();
+  
+  // Check in media key mappings
+  for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
+    if (key.equals(mediaKeyMappings[i].name)) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 void startAdvertising() {

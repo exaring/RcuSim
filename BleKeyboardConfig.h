@@ -6,9 +6,9 @@
 
 // ================ CONFIGURATION PARAMETERS ================
 // Customize these values to change the device properties
-#define DEVICE_NAME "Waipu.tv Fernbedienung 2"  // Device name shown in Bluetooth settings
+#define DEVICE_NAME "B18F0 MGKeyboard"  // Device name shown in Bluetooth settings
 #define MANUFACTURER_NAME "ExaringAG"     // Manufacturer name
-#define INITIAL_BATTERY_LEVEL 80         // Initial battery level (0-100)
+#define INITIAL_BATTERY_LEVEL 100         // Initial battery level (0-100)
 
 // USB HID parameters
 #define VENDOR_ID 0x05ac                 // Vendor ID (Apple in this example)
@@ -41,7 +41,13 @@ struct KeyMapping {
   uint8_t keyCode;
 };
 
-// Mapping from string names to keycodes
+// Structure for media key mapping
+struct MediaKeyMapping {
+  const char* name;
+  uint16_t keyCode;  // Using uint16_t for media keys
+};
+
+// Mapping from string names to regular keycodes
 const KeyMapping keyMappings[] = {
   {"up", KEY_UP_ARROW},
   {"down", KEY_DOWN_ARROW},
@@ -81,17 +87,42 @@ const KeyMapping keyMappings[] = {
   {"f12", KEY_F12},
   {"printscreen", KEY_PRINT_SCREEN},
   {"scrolllock", KEY_SCROLL_LOCK},
-  {"pause", KEY_PAUSE},
+  {"pause", KEY_PAUSE}
+};
+
+// Mapping from string names to media keycodes
+const MediaKeyMapping mediaKeyMappings[] = {
   {"playpause", KEY_MEDIA_PLAY_PAUSE},
+  {"play", KEY_MEDIA_PLAY_PAUSE},
+  {"pause", KEY_MEDIA_PLAY_PAUSE},
   {"nexttrack", KEY_MEDIA_NEXT_TRACK},
+  {"next", KEY_MEDIA_NEXT_TRACK},
   {"prevtrack", KEY_MEDIA_PREVIOUS_TRACK},
+  {"previous", KEY_MEDIA_PREVIOUS_TRACK},
+  {"prev", KEY_MEDIA_PREVIOUS_TRACK},
   {"stop", KEY_MEDIA_STOP},
   {"mute", KEY_MEDIA_MUTE},
   {"volumeup", KEY_MEDIA_VOLUME_UP},
-  {"volumedown", KEY_MEDIA_VOLUME_DOWN}
+  {"volup", KEY_MEDIA_VOLUME_UP},
+  {"volumedown", KEY_MEDIA_VOLUME_DOWN},
+  {"voldown", KEY_MEDIA_VOLUME_DOWN},
+  {"home", KEY_MEDIA_WWW_HOME},
+  {"computer", KEY_MEDIA_LOCAL_MACHINE_BROWSER},
+  {"mypc", KEY_MEDIA_LOCAL_MACHINE_BROWSER},
+  {"calc", KEY_MEDIA_CALCULATOR},
+  {"calculator", KEY_MEDIA_CALCULATOR},
+  {"bookmarks", KEY_MEDIA_WWW_BOOKMARKS},
+  {"favorites", KEY_MEDIA_WWW_BOOKMARKS},
+  {"search", KEY_MEDIA_WWW_SEARCH},
+  {"browserstop", KEY_MEDIA_WWW_STOP},
+  {"back", KEY_MEDIA_WWW_BACK},
+  {"mediaselect", KEY_MEDIA_MEDIA_SELECT},
+  {"mail", KEY_MEDIA_MAIL},
+  {"email", KEY_MEDIA_MAIL}
 };
 
 const int NUM_KEY_MAPPINGS = sizeof(keyMappings) / sizeof(KeyMapping);
+const int NUM_MEDIA_KEY_MAPPINGS = sizeof(mediaKeyMappings) / sizeof(MediaKeyMapping);
 
 // Function declarations
 void processCommand(String command);
@@ -99,6 +130,8 @@ void printError(int errorCode, String message);
 void printStatus(int statusCode, String message);
 void printHelp();
 uint8_t getKeyCode(String key);
+uint16_t getMediaKeyCode(String key);
+bool isMediaKey(String key);
 void startAdvertising();
 void stopAdvertising();
 void printDiagnostics();
