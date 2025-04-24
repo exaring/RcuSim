@@ -1,13 +1,13 @@
-#ifndef BLE_KEYBOARD_CONFIG_H
-#define BLE_KEYBOARD_CONFIG_H
+#ifndef BLE_REMOTE_CONTROL_CONFIG_H
+#define BLE_REMOTE_CONTROL_CONFIG_H
 
 #include <Arduino.h>
-#include "BleKeyboard.h"
+#include "BleRemoteControl.h"
 
 // ================ CONFIGURATION PARAMETERS ================
 // Customize these values to change the device properties
-#define DEVICE_NAME "B18F0 MGKeyboard"  // Device name shown in Bluetooth settings
-#define MANUFACTURER_NAME "ExaringAG"     // Manufacturer name
+#define DEVICE_NAME "ESP32 BLE Remote Control"  // Device name shown in Bluetooth settings
+#define MANUFACTURER_NAME "Espressif"     // Manufacturer name
 #define INITIAL_BATTERY_LEVEL 100         // Initial battery level (0-100)
 
 // USB HID parameters
@@ -118,7 +118,8 @@ const MediaKeyMapping mediaKeyMappings[] = {
   {"back", KEY_MEDIA_WWW_BACK},
   {"mediaselect", KEY_MEDIA_MEDIA_SELECT},
   {"mail", KEY_MEDIA_MAIL},
-  {"email", KEY_MEDIA_MAIL}
+  {"email", KEY_MEDIA_MAIL},
+  {"power", 0x30}  // Consumer Control Power
 };
 
 const int NUM_KEY_MAPPINGS = sizeof(keyMappings) / sizeof(KeyMapping);
@@ -137,4 +138,4 @@ void stopAdvertising();
 void printDiagnostics();
 void printConfiguration();
 
-#endif // BLE_KEYBOARD_CONFIG_H
+#endif // BLE_REMOTE_CONTROL_CONFIG_H
