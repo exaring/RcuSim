@@ -18,7 +18,7 @@ Connect via USB (Silicon Labs CP21xx https://www.silabs.com/developer-tools/usb-
 * Stopbits 1
 
 ### Commands and Keys
-`
+```
 unpair                - Removes all stored pairings
 press <key>           - Presses a key (can use name, character, or 0xXX format)
 release <key>         - Releases a key (can use name, character, or 0xXX format)
@@ -55,4 +55,4 @@ volumedown, voldown, home, computer
 mypc, calc, calculator, bookmarks
 favorites, search, browserstop, back
 mediaselect, mail, email, power
-`
+```
