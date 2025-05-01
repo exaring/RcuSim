@@ -172,6 +172,12 @@ void cmdSaveConfig() {
 void cmdConnectWiFi() {
   Serial.println("Trying to establish WiFi connection...");
   wifiManager.setup();
+  if (wifiManager.isConnected()) {
+    Serial.println("Connected to WiFi!");
+    setupWebServer();
+  } else {
+    Serial.println("Failed to connect to WiFi.");
+  }
 }
 #pragma endregion
 

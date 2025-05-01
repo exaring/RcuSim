@@ -111,15 +111,18 @@ void setupWebServer() {
           delayParam = request->getParam("delay")->value().toInt();
         }
         
-        // TODO: Implement key press, delay, and release logic
-        response = "{\"status\":\"success\",\"message\":\"Key pressed and released: " + keyParam + 
-                   "\", \"delay\":" + String(delayParam) + "}";
-        responseCode = 200;
+        if(bleRemoteControl.key(keyParam, delayParam))
+        {
+          response = "{\"status\":\"success\",\"message\":\"Key pressed and released: " + keyParam + 
+                     "\", \"delay\":" + String(delayParam) + "}";
+          responseCode = 200;
+        } else {
+          response = "{\"status\":\"error\",\"message\":\"Failed to process key: " + keyParam + "\"}";
+        }
+      } else {
+        response = "{\"status\":\"error\",\"message\":\"Missing key parameter\"}";
       }
-      
-      AsyncWebServerResponse *serverResponse = request->beginResponse(responseCode, "application/json", response);
-      serverResponse->addHeader("Access-Control-Allow-Origin", "*");
-      request->send(serverResponse);
+      sendJsonResponse(request, responseCode, response);
     });
 
     server.on("/api/system/diagnostics", HTTP_GET, [](AsyncWebServerRequest *request) {
