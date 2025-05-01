@@ -3,6 +3,13 @@
 
 AsyncWebServer server(80);
 
+void sendJsonResponse(AsyncWebServerRequest *request, int httpCode, String message) {
+  String jsonResponse = "{\"status\":" + String(httpCode) + ",\"message\":\"" + message + "\"}";
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/json", jsonResponse);
+  response->addHeader("Access-Control-Allow-Origin", "*");
+  request->send(response);
+}
+
 void setupWebServer() {
     Serial.println("Initializing web server and REST API...");
     
@@ -16,26 +23,38 @@ void setupWebServer() {
     
     // API endpoint for pair command
     server.on("/api/pair", HTTP_GET, [](AsyncWebServerRequest *request) {
-      // TODO: Implement pairing logic
-      AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"message\":\"Pairing started\"}");
-      response->addHeader("Access-Control-Allow-Origin", "*");
-      request->send(response);
+      if (isBleAdvertising) {
+        sendJsonResponse(request, 400, "BLE advertising is already running");
+        return;
+      }
+      
+      // Direct call to the extended BleRemoteControl method
+      bleRemoteControl.startAdvertising();
+      isBleAdvertising = true;
+      Serial.println("BLE advertising started for pairing...");
+      sendJsonResponse(request, 200, "BLE advertising started for pairing");
     });
 
     // API endpoint for stoppair command
     server.on("/api/stoppair", HTTP_GET, [](AsyncWebServerRequest *request) {
-      // TODO: Implement stop pairing logic
-      AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"message\":\"Pairing stopped\"}");
-      response->addHeader("Access-Control-Allow-Origin", "*");
-      request->send(response);
+      if (!isBleAdvertising) {
+        sendJsonResponse(request, 400, "BLE advertising is not active");
+        return;
+      }
+      
+      // Direct call to the extended BleRemoteControl method
+      bleRemoteControl.stopAdvertising();
+      isBleAdvertising = false;
+      sendJsonResponse(request, 200, "BLE advertising stopped");
     });
 
     // API endpoint for unpair command
     server.on("/api/unpair", HTTP_GET, [](AsyncWebServerRequest *request) {
-      // TODO: Implement unpairing logic
-      AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"message\":\"Unpairing completed\"}");
-      response->addHeader("Access-Control-Allow-Origin", "*");
-      request->send(response);
+      if (bleRemoteControl.removeBonding()) {
+        sendJsonResponse(request, 400, "Pairing information removed successfully");
+      } else {
+        sendJsonResponse(request, 400, "Failed to remove pairing information");
+      }
     });
 
     // API endpoint for press command
@@ -102,6 +121,41 @@ void setupWebServer() {
       serverResponse->addHeader("Access-Control-Allow-Origin", "*");
       request->send(serverResponse);
     });
+
+    server.on("/api/system/diagnostics", HTTP_GET, [](AsyncWebServerRequest *request) {
+      String jsonResponse = getDeviceInfo();
+      AsyncWebServerResponse *response = request->beginResponse(200, "application/json", jsonResponse);
+      response->addHeader("Access-Control-Allow-Origin", "*");
+      request->send(response);
+    });
+
+    server.on("/api/system/battery", HTTP_GET, [](AsyncWebServerRequest *request) {
+      int levelParam = 100;
+      String response = "{\"status\":\"error\",\"message\":\"Missing level parameter\"}";
+      int responseCode = 400;
+      
+      // Check if key parameter exists
+      if (request->hasParam("level")) {
+        levelParam = request->getParam("key")->value().toInt();
+        if(levelParam >= 0 && levelParam <= 100) {
+          bleRemoteControl.setBatteryLevel(levelParam);
+          response = "{\"status\":\"success\",\"message\":\"Battery level set to " + String(levelParam) + "\"}";
+          responseCode = 200;
+        } else {
+          response = "{\"status\":\"error\",\"message\":\"Invalid battery level value'"+ String(levelParam) + "'\"}";
+        }
+      }
+      sendJsonResponse(request, responseCode, response);
+    });
+
+    server.on("/api/system/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
+      String response = "{\"status\":\"success\",\"message\":\"Rebooting device...\"}";
+      AsyncWebServerResponse *serverResponse = request->beginResponse(200, "application/json", response);
+      serverResponse->addHeader("Access-Control-Allow-Origin", "*");
+      request->send(serverResponse);
+      delay(1000); // Delay to allow the response to be sent before rebooting
+      ESP.restart(); // Reboot the device
+    });    
     
     // Default endpoint (Root)
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -147,6 +201,9 @@ void setupWebServer() {
     Serial.println("  GET /api/press - Press key");
     Serial.println("  GET /api/release - Release key");
     Serial.println("  GET /api/key - Press and release key with optional delay");
+    Serial.println("  GET /api/System/reboot - Reboots the ESP32");
+    Serial.println("  GET /api/system/diagnostics - Diagnostic information in JSON format");
+    Serial.println("  GET /api/system/battery - Set battery level (0-100)");
   }
   
   // Generate diagnostic information as JSON

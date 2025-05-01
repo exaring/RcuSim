@@ -2,6 +2,10 @@
 #define GLOBALS_H
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h>
+#include "webserver.h"
+#include "wifimanager.h"
+#include "BleRemoteControl.h"
 
 // ================ CONFIGURATION PARAMETERS ================
 // Customize these values to change the BLE device properties
@@ -38,4 +42,16 @@
 #define STATUS_PAIRING 2004
 #define STATUS_PAIRED 2005
 
+// Global Variables
+extern bool isConfigMode;
+extern WiFiManager wifiManager;
+extern BleRemoteControl bleRemoteControl;
+extern Preferences preferences;
+
+extern bool deviceConnected;
+extern bool oldDeviceConnected;
+extern bool isBleAdvertising;
+
+extern unsigned long startTime;
+extern unsigned long bootCount;
 #endif

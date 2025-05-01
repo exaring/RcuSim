@@ -6,15 +6,14 @@
 #include "wifimanager.h"
 #include "BleRemoteControl.h"
 
-// Global Variables
+// Global variables
 bool isConfigMode = false;
 WiFiManager wifiManager;
 BleRemoteControl bleRemoteControl(BLE_DEVICE_NAME, BLE_MANUFACTURER_NAME, BLE_INITIAL_BATTERY_LEVEL);
 Preferences preferences;
-
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
-
+bool isBleAdvertising = false;
 unsigned long startTime = 0;
 unsigned long bootCount = 0;
 
@@ -220,5 +219,19 @@ void printHelp() {
 
 // BLE setup
 void setupBLE() {
-
+  bleRemoteControl.setConnectionCallback([](String message) {
+    // This function is called when a BLE connection is established
+    Serial.println("BLE - Device connected");
+  });
+  
+  // Set USB HID device properties
+  bleRemoteControl.set_vendor_id(VENDOR_ID);
+  bleRemoteControl.set_product_id(PRODUCT_ID);
+  bleRemoteControl.set_version(VERSION_ID);
+  
+  // Initialize BLE functionality, but don't start yet
+  bleRemoteControl.begin();
+  
+  // Wait for initialization
+  delay(500);
 }
