@@ -6,6 +6,77 @@
 #include "wifimanager.h"
 #include "BleRemoteControl.h"
 
+// Optional OLED Display Support
+// Uncomment the next line to enable OLED display support
+#define USE_DISPLAY
+
+#ifdef USE_DISPLAY
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// Display settings
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C // I2C address - typical for 128x64 OLED
+
+// Initialize the OLED display
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Function to update display with current status
+void updateDisplay() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  
+  // Title
+  display.println("ESP32 BLE Remote");
+  display.drawLine(0, 8, display.width(), 8, SSD1306_WHITE);
+  
+  // WiFi Status
+  display.setCursor(0, 10);
+  if (wifiManager.isConnected()) {
+    display.print("WiFi: ");
+    display.println(wifiManager.ssid());
+    display.print("IP: ");
+    display.println(wifiManager.localIp().toString());
+    display.print("RSSI: ");
+    display.print(wifiManager.RSSI());
+    display.println(" dBm");
+  } else {
+    display.println("WiFi: Disconnected");
+    if (isBleAdvertising) {
+      display.println("Setup: Connect to WiFi");
+//      display.println(AP_SSID);
+      display.println("Visit: 192.168.4.1");
+    }
+  }
+  
+  // BLE Status
+  display.setCursor(0, 40);
+  display.print("BLE: ");
+  if (deviceConnected) {
+    display.println("Connected");
+  } else if (isBleAdvertising) {
+    display.println("Advertising...");
+  } else {
+    display.println("Ready (not connected)");
+  }
+
+  // Show battery level if BLE is connected
+  if (deviceConnected) {
+    display.setCursor(0, 50);
+    display.print("Battery: ");
+//    display.print(bleRemoteControl.getBatteryLevel());
+    display.println("%");
+  }
+  
+  display.display();
+}
+#endif
+
 // Global variables
 bool isConfigMode = false;
 WiFiManager wifiManager;
@@ -34,11 +105,44 @@ void cmdDiag();
 void printHelp();
 void updateBootCounter();
 
+// Status update interval for display refresh
+unsigned long lastStatusUpdate = 0;
+const unsigned long STATUS_UPDATE_INTERVAL = 2000; // Update every 2 seconds
+
 // The main setup routine executed once at bootup
 void setup() {
-  startTime = millis();
-  updateBootCounter();
+  Serial.begin(115200);
+  Serial.println("Starting ESP32 BLE Remote Control");
 
+  // Initialize EEPROM
+  preferences.begin("rcu-config", false);
+  
+  // Read boot count
+  bootCount = preferences.getUInt("bootCount", 0);
+  bootCount++;
+  preferences.putUInt("bootCount", bootCount);
+  Serial.printf("Boot count: %u\n", bootCount);
+  
+  // Save startup time
+  startTime = millis();
+  
+#ifdef USE_DISPLAY
+  // Initialize the OLED display
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    // Don't return, just continue without display
+  } else {
+    Serial.println("OLED display initialized");
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("ESP32 BLE Remote");
+    display.println("Initializing...");
+    display.display();
+  }
+#endif
+  
   setupSerial();
   wifiManager.setup();
   setupBLE();
@@ -47,6 +151,13 @@ void setup() {
   if (wifiManager.isConnected()) {
     setupWebServer();
   }
+  
+#ifdef USE_DISPLAY
+  // Initial display update
+  updateDisplay();
+#endif
+
+  Serial.println("Setup completed");
 }
 
 // The main loop routine runs over and over again
@@ -59,6 +170,18 @@ void loop() {
       processCommand(command);
     }
   }
+  
+  // Handle WiFi manager updates
+//   wifiManager.loop();
+  
+#ifdef USE_DISPLAY
+  // Update display periodically
+  unsigned long currentTime = millis();
+  if (currentTime - lastStatusUpdate > STATUS_UPDATE_INTERVAL) {
+    updateDisplay();
+    lastStatusUpdate = currentTime;
+  }
+#endif
   
   // Periodically check status and report (optional)
   delay(100);
