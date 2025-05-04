@@ -416,66 +416,126 @@ size_t BleRemoteControl::release(const MediaKeyReport k)
 	return 1;
 }
 
-bool BleRemoteControl::key(String k, uint32_t delay_ms)
+bool BleRemoteControl::sendKey(String k, uint32_t delay_ms)
 {
-		
-	// Check if the key is a media key
-	if (isMediaKey(k)) {
-		uint16_t mediaKeyCode = getMediaKeyCode(k);
-		if (mediaKeyCode != 0) {
-			// Create a MediaKeyReport and set the appropriate bit
-			MediaKeyReport mediaKeyReport = {0, 0};
-			
-			if (mediaKeyCode > 0x80) {
-				// The key is in the second byte (high byte)
-				mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
-				mediaKeyReport[1] = 0;
-			} else {
-				// The key is in the first byte (low byte)
-				mediaKeyReport[0] = 0;
-				mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
-			}
-			
-			// Press, wait, and release
-			press(mediaKeyReport);
-			delay(delay_ms);
-			release(mediaKeyReport);
-			return true;
-		}
-	}
-
-	    // Determine key and press
-		uint8_t keyCode = 0;
+    // Press the key
+    if (!sendPress(k)) {
+        return false;
+    }
     
-		// Check if keyName is a hex value (format: 0xXX)
-		if (k.startsWith("0x") && k.length() > 2) {
-		  // Convert hex string to integer
-		  char* endPtr;
-		  keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
-		  if (*endPtr != '\0') {
-			// Conversion failed
-			//printError(ERR_INVALID_PARAMETER, "Invalid hex key code: " + keyName);
-			return false;
-		  }
-		} else if (k.length() == 1) {
-		  // Single character
-		  keyCode = k.charAt(0);
-		} else {
-		  // Special key via mapping
-		  keyCode = getKeyCode(k);
-		  if (keyCode == 0) {
-			// printError(ERR_KEY_NOT_FOUND, "Unknown key: " + keyName);
-			return false;
-		  }
-		}
-		
-		// Press key, wait, and release
-		press(keyCode);
-		delay(delay_ms);
-		release(keyCode);
-		return true;
-		//printStatus(STATUS_OK, "Key '" + keyName + "' pressed and released after " + String(keyDelay) + "ms");
-	
+    // Wait for the specified delay
+    delay(delay_ms);
+    
+    // Release the key
+    return sendRelease(k);
+}
+
+bool BleRemoteControl::sendPress(String k)
+{
+    // Check if the key is a media key
+    if (isMediaKey(k)) {
+        uint16_t mediaKeyCode = getMediaKeyCode(k);
+        if (mediaKeyCode != 0) {
+            // Create a MediaKeyReport and set the appropriate bit
+            MediaKeyReport mediaKeyReport = {0, 0};
+            
+            if (mediaKeyCode > 0x80) {
+                // The key is in the second byte (high byte)
+                mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
+                mediaKeyReport[1] = 0;
+            } else {
+                // The key is in the first byte (low byte)
+                mediaKeyReport[0] = 0;
+                mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
+            }
+            
+            // Press only
+            press(mediaKeyReport);
+            return true;
+        }
+        return false;
+    }
+
+    // Determine key and press
+    uint8_t keyCode = 0;
+
+    // Check if keyName is a hex value (format: 0xXX)
+    if (k.startsWith("0x") && k.length() > 2) {
+        // Convert hex string to integer
+        char* endPtr;
+        keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
+        if (*endPtr != '\0') {
+            // Conversion failed
+            return false;
+        }
+    } else if (k.length() == 1) {
+        // Single character
+        keyCode = k.charAt(0);
+    } else {
+        // Special key via mapping
+        keyCode = getKeyCode(k);
+        if (keyCode == 0) {
+            return false;
+        }
+    }
+    
+    // Press key
+    press(keyCode);
+    return true;
+}
+
+bool BleRemoteControl::sendRelease(String k)
+{
+    // Check if the key is a media key
+    if (isMediaKey(k)) {
+        uint16_t mediaKeyCode = getMediaKeyCode(k);
+        if (mediaKeyCode != 0) {
+            // Create a MediaKeyReport and set the appropriate bit
+            MediaKeyReport mediaKeyReport = {0, 0};
+            
+            if (mediaKeyCode > 0x80) {
+                // The key is in the second byte (high byte)
+                mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
+                mediaKeyReport[1] = 0;
+            } else {
+                // The key is in the first byte (low byte)
+                mediaKeyReport[0] = 0;
+                mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
+            }
+            
+            // Release only
+            release(mediaKeyReport);
+            return true;
+        }
+        return false;
+    }
+
+    // Determine key and release
+    uint8_t keyCode = 0;
+
+    // Check if keyName is a hex value (format: 0xXX)
+    if (k.startsWith("0x") && k.length() > 2) {
+        // Convert hex string to integer
+        char* endPtr;
+        keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
+        if (*endPtr != '\0') {
+            // Conversion failed
+            return false;
+        }
+    } else if (k.length() == 1) {
+        // Single character
+        keyCode = k.charAt(0);
+    } else {
+        // Special key via mapping
+        keyCode = getKeyCode(k);
+        if (keyCode == 0) {
+            return false;
+        }
+    }
+    
+    // Release key
+    release(keyCode);
+    return true;
 }
 
 void BleRemoteControl::releaseAll(void)
@@ -666,5 +726,4 @@ uint8_t BleRemoteControl::getKeyCode(String key) {
 	
 	return 0; // Not found
 }
-  
-  
+

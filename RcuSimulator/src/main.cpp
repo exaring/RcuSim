@@ -202,7 +202,7 @@ void cmdDiag() {
   Serial.println(wifiManager.isConnected() ? "Connected" : "Not connected");
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("  Current IP: ");
-    Serial.println(WiFi.localIP());
+    Serial.println(wifiManager.localIp());
   }
 }
 void printHelp() {

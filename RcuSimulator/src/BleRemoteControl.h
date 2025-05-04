@@ -230,6 +230,13 @@ private:
   bool isMediaKey(String key);
   uint16_t getMediaKeyCode(String key);
   uint8_t getKeyCode(String key);
+  size_t press(uint8_t k);
+  size_t press(const MediaKeyReport k);
+  size_t release(uint8_t k);
+  size_t release(const MediaKeyReport k);
+  size_t write(uint8_t c);
+  size_t write(const MediaKeyReport c);
+  size_t write(const uint8_t *buffer, size_t size);
 
 public:
   BleRemoteControl(std::string deviceName = "ESP32 BLE Remote Control", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
@@ -239,15 +246,10 @@ public:
   void sendReport(MediaKeyReport* keys);
   size_t press(String key);
   size_t release(String key);
-  bool key(String k, uint32_t delay_ms = 0);
+  bool sendKey(String k, uint32_t delay_ms = 0);
+  bool sendPress(String key);
+  bool sendRelease(String key);
 
-  size_t press(uint8_t k);
-  size_t press(const MediaKeyReport k);
-  size_t release(uint8_t k);
-  size_t release(const MediaKeyReport k);
-  size_t write(uint8_t c);
-  size_t write(const MediaKeyReport c);
-  size_t write(const uint8_t *buffer, size_t size);
   void releaseAll(void);
   bool isConnected(void);
   void setBatteryLevel(uint8_t level);
