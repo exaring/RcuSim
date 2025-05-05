@@ -20,6 +20,7 @@ private:
 
     bool _unsavedChanges = false;
     bool _useStaticIp = false;
+    bool _isConnected = false;
     
     // Preferences-Instance
     Preferences preferences;
@@ -39,7 +40,7 @@ public:
     bool disconnect();
     int status(); // Gibt den WiFi-Status zurück
     bool isConnected() const { return WiFi.status() == WL_CONNECTED; }  
-   
+    void loop();
     
     // Konfigurationsmethoden
     void setSSID(const String& ssid);

@@ -267,3 +267,25 @@ bool WiFiManager::isValidIPAddress(const String& ip) {
     // There must be exactly 4 octets
     return octetIndex == 4;
   }
+
+void WiFiManager::loop() {
+    // Check WiFi connection status
+    if (WiFi.status() == WL_CONNECTED) {
+        if (!_isConnected) {
+            // Connection was established
+            _isConnected = true;
+            Serial.println("WiFi connected");
+            Serial.print("IP address: ");
+            Serial.println(WiFi.localIP());
+        }
+    } else {
+        if (_isConnected) {
+            // Connection was lost
+            _isConnected = false;
+            Serial.println("WiFi connection lost");
+            
+            // Optionally try to reconnect after a delay
+            // We can implement automatic reconnection here if needed
+        }
+    }
+}

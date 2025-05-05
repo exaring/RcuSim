@@ -253,6 +253,7 @@ public:
   void releaseAll(void);
   bool isConnected(void);
   void setBatteryLevel(uint8_t level);
+  uint8_t getBatteryLevel(void) { return this->batteryLevel; }
   void setName(std::string deviceName);
   void setDelay(uint32_t ms);
   void set_vendor_id(uint16_t vid);

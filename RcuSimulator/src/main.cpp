@@ -5,25 +5,13 @@
 #include "webserver.h"
 #include "wifimanager.h"
 #include "BleRemoteControl.h"
+#include "main.h"
 
 // Optional OLED Display Support
 // Uncomment the next line to enable OLED display support
 #define USE_DISPLAY
 
 #ifdef USE_DISPLAY
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-
-// Display settings
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C // I2C address - typical for 128x64 OLED
-
-// Initialize the OLED display
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
 // Function to update display with current status
 void updateDisplay() {
   display.clearDisplay();
@@ -40,19 +28,16 @@ void updateDisplay() {
   if (wifiManager.isConnected()) {
     display.print("WiFi: ");
     display.println(wifiManager.ssid());
-    display.print("IP: ");
+    display.print("> IP: ");
     display.println(wifiManager.localIp().toString());
-    display.print("RSSI: ");
+    display.print("> RSSI: ");
     display.print(wifiManager.RSSI());
     display.println(" dBm");
   } else {
     display.println("WiFi: Disconnected");
-    if (isBleAdvertising) {
-      display.println("Setup: Connect to WiFi");
-//      display.println(AP_SSID);
-      display.println("Visit: 192.168.4.1");
-    }
-  }
+    display.println("> Config: Use serial");
+    display.println("> Baud: 115200,8,N,1");
+  }  
   
   // BLE Status
   display.setCursor(0, 40);
@@ -62,17 +47,16 @@ void updateDisplay() {
   } else if (isBleAdvertising) {
     display.println("Advertising...");
   } else {
-    display.println("Ready (not connected)");
+    display.println("Ready to connect");
   }
 
   // Show battery level if BLE is connected
   if (deviceConnected) {
     display.setCursor(0, 50);
     display.print("Battery: ");
-//    display.print(bleRemoteControl.getBatteryLevel());
+    display.print(bleRemoteControl.getBatteryLevel());
     display.println("%");
-  }
-  
+  }  
   display.display();
 }
 #endif
@@ -87,23 +71,6 @@ bool oldDeviceConnected = false;
 bool isBleAdvertising = false;
 unsigned long startTime = 0;
 unsigned long bootCount = 0;
-
-// Function prototypes
-void setupSerial();
-void handleSerialCommands();
-void setupBLE();
-void processCommand(String command);
-void cmdSetSSID(String ssid);
-void cmdSetPwd(String password);
-void cmdSetIP(String ip);
-void cmdSetGateway(String gateway);
-void cmdSaveConfig();
-void cmdConnectWiFi();
-void cmdReboot();
-void cmdShowConfig();
-void cmdDiag();
-void printHelp();
-void updateBootCounter();
 
 // Status update interval for display refresh
 unsigned long lastStatusUpdate = 0;
@@ -172,7 +139,7 @@ void loop() {
   }
   
   // Handle WiFi manager updates
-//   wifiManager.loop();
+  wifiManager.loop();
   
 #ifdef USE_DISPLAY
   // Update display periodically
@@ -193,8 +160,7 @@ void setupSerial() {
   Serial.println("ESP32 BLE Remote Control - Startup");
 }
 
-void updateBootCounter()
-{
+void updateBootCounter() {
   bootCount = preferences.getULong("bootCount", 0);
   bootCount++;
   preferences.putULong("bootCount", bootCount);
@@ -328,6 +294,7 @@ void cmdDiag() {
     Serial.println(wifiManager.localIp());
   }
 }
+
 void printHelp() {
   Serial.println("\n=== BLE Remote Control Console Commands ===");
   Serial.println("help                  - Shows this help");
