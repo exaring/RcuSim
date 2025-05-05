@@ -48,6 +48,59 @@ String generateApiSection(String title, String content) {
   return html;
 }
 
+// Add this function to webserver.cpp to generate the key list section
+String generateKeysSection() {
+  String htmlContent = "";
+  
+  // Navigation keys
+  String navigationKeys = "<div class='endpoint'><strong>Navigation:</strong> ";
+  navigationKeys += "up, down, left, right, enter, back, home, menu";
+  navigationKeys += "</div>";
+  
+  // Media keys
+  String mediaKeys = "<div class='endpoint'><strong>Media:</strong> ";
+  mediaKeys += "playpause, play, pause, stop, record, fastforward, rewind, ";
+  mediaKeys += "nextsong, previoussong, volumeup, volumedown, mute";
+  mediaKeys += "</div>";
+  
+  // Number keys
+  String numberKeys = "<div class='endpoint'><strong>Numbers:</strong> ";
+  numberKeys += "0, 1, 2, 3, 4, 5, 6, 7, 8, 9";
+  numberKeys += "</div>";
+  
+  // Function keys
+  String functionKeys = "<div class='endpoint'><strong>Function:</strong> ";
+  functionKeys += "f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12";
+  functionKeys += "</div>";
+  
+  // Special keys
+  String specialKeys = "<div class='endpoint'><strong>Special:</strong> ";
+  specialKeys += "escape, tab, capslock, shift, ctrl, alt, space, backspace, delete, ";
+  specialKeys += "insert, pageup, pagedown, home, end, power, info, guide, ";
+  specialKeys += "red, green, yellow, blue";
+  specialKeys += "</div>";
+  
+  // Browser/app keys
+  String browserKeys = "<div class='endpoint'><strong>Browser:</strong> ";
+  browserKeys += "search, favorite, browser, mail, calculator";
+  browserKeys += "</div>";
+  
+  // Tips about hex format
+  String keyTips = "<div class='endpoint'><strong>Tip:</strong> ";
+  keyTips += "You can also use hexadecimal key codes in format 0xXX";
+  keyTips += "</div>";
+  
+  htmlContent += navigationKeys;
+  htmlContent += mediaKeys;
+  htmlContent += numberKeys;
+  htmlContent += functionKeys;
+  htmlContent += specialKeys;
+  htmlContent += browserKeys;
+  htmlContent += keyTips;
+  
+  return htmlContent;
+}
+
 void sendJsonResponse(AsyncWebServerRequest *request, int httpCode, String message) {
   StaticJsonDocument<256> doc;
   doc["status"] = httpCode;
@@ -63,14 +116,6 @@ void sendJsonResponse(AsyncWebServerRequest *request, int httpCode, String messa
 
 void setupWebServer() {
     Serial.println("Initializing web server and REST API...");
-    
-    // Endpoint for diagnostic information
-    server.on("/api/diagnostics", HTTP_GET, [](AsyncWebServerRequest *request){
-      String jsonResponse = getDeviceInfo();
-      AsyncWebServerResponse *response = request->beginResponse(200, "application/json", jsonResponse);
-      response->addHeader("Access-Control-Allow-Origin", "*");
-      request->send(response);
-    });
     
     // API endpoint for pair command
     server.on("/api/pair", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -233,7 +278,7 @@ void setupWebServer() {
       
       // Key control endpoints
       String keyContent = "<div class='endpoint'><a href='/api/key?key=up'>Press Key</a> - Press and release a key";
-      keyContent += "<div class='params'>Parameters: key (required), delay (optional, default=100ms)</div></div>";
+      keyContent += "<div class='params'>Parameters: key (required), delay in ms (optional, default=100)</div></div>";
       keyContent += "<div class='endpoint'><a href='/api/press?key=up'>Press Only</a> - Press a key without releasing";
       keyContent += "<div class='params'>Parameters: key (required)</div></div>";
       keyContent += "<div class='endpoint'><a href='/api/release?key=up'>Release Only</a> - Release a previously pressed key";
@@ -242,8 +287,7 @@ void setupWebServer() {
       htmlResponse += generateApiSection("Remote Control", keyContent);
       
       // System endpoints
-      String sysContent = "<div class='endpoint'><a href='/api/diagnostics'>Diagnostic Information</a> - Get all system diagnostic data</div>";
-      sysContent += "<div class='endpoint'><a href='/api/system/diagnostics'>System Diagnostics</a> - Detailed system information</div>";
+      String sysContent = "<div class='endpoint'><a href='/api/system/diagnostics'>System Diagnostics</a> - Detailed system information</div>";
       sysContent += "<div class='endpoint'><a href='/api/system/battery?level=100'>Set Battery Level</a> - Set the reported battery level";
       sysContent += "<div class='params'>Parameters: level (0-100)</div></div>";
       sysContent += "<div class='endpoint'><a href='/api/system/reboot'>Reboot Device</a> - Restart the ESP32</div>";
@@ -259,6 +303,10 @@ void setupWebServer() {
       examplesContent += "<div class='endpoint'><a href='/api/key?key=volumeup'>Volume Up</a></div>";
       examplesContent += "<div class='endpoint'><a href='/api/key?key=volumedown'>Volume Down</a></div>";
       htmlResponse += generateApiSection("Key Examples", examplesContent);
+      
+      // Add the new keys reference section
+      htmlResponse += "<h2>Available Keys</h2>";
+      htmlResponse += generateApiSection("Keys Reference", generateKeysSection());
       
       htmlResponse += "</div></body></html>";
       
