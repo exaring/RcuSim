@@ -7,6 +7,9 @@
 #include "BleRemoteControl.h"
 #include "main.h"
 
+
+BleRemoteControl bleRemoteControl(BLE_DEVICE_NAME, BLE_MANUFACTURER_NAME, BLE_INITIAL_BATTERY_LEVEL);
+
 // Optional OLED Display Support
 // Uncomment the next line to enable OLED display support
 #define USE_DISPLAY
@@ -44,7 +47,7 @@ void updateDisplay() {
   display.print("BLE: ");
   if (deviceConnected) {
     display.println("Connected");
-  } else if (isBleAdvertising) {
+  } else if (bleRemoteControl.isAdvertising()) {
     display.println("Advertising...");
   } else {
     display.println("Ready to connect");
@@ -64,7 +67,6 @@ void updateDisplay() {
 // Global variables
 bool isConfigMode = false;
 WiFiManager wifiManager;
-BleRemoteControl bleRemoteControl(BLE_DEVICE_NAME, BLE_MANUFACTURER_NAME, BLE_INITIAL_BATTERY_LEVEL);
 Preferences preferences;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
@@ -202,9 +204,31 @@ void processCommand(String command) {
     cmdReboot();
   } else if (baseCommand == "diag") {
     cmdDiag();
+  } 
+  // BLE Remote Control Commands
+  else if (baseCommand == "pair" || baseCommand == "ble-pair") {
+    cmdStartPairing();
+  } else if (baseCommand == "stoppair" || baseCommand == "ble-stoppair") {
+    cmdStopPairing();
+  } else if (baseCommand == "unpair" || baseCommand == "ble-unpair") {
+    cmdUnpair();
+  } else if (baseCommand == "key") {
+    cmdSendKey(parameter);
+  } else if (baseCommand == "press") {
+    cmdPressKey(parameter);
+  } else if (baseCommand == "release") {
+    cmdReleaseKey(parameter);
+  } else if (baseCommand == "releaseall") {
+    cmdReleaseAllKeys();
+  } else if (baseCommand == "battery") {
+    cmdSetBatteryLevel(parameter);
+  } else if (baseCommand == "ble-status") {
+    cmdShowBleStatus();
   } else {
-    Serial.print("Unknown command: ");
-    Serial.println(command);
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.print(ERR_UNKNOWN_COMMAND);
+    Serial.println(" Unknown command: " + command);
   }
 }
 
@@ -295,35 +319,269 @@ void cmdDiag() {
   }
 }
 
+#pragma region BLE Commands
+// Command to start BLE advertising/pairing mode
+void cmdStartPairing() {
+  if (isBleAdvertising) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_ALREADY_ADVERTISING);
+    return;
+  }
+  
+  bleRemoteControl.startAdvertising();
+  isBleAdvertising = true;
+  Serial.print(STATUS_PREFIX);
+  Serial.print(" ");
+  Serial.print(STATUS_ADVERTISING);
+  Serial.println(" BLE advertising started for pairing");
+}
+
+// Command to stop BLE advertising/pairing mode
+void cmdStopPairing() {
+  if (!isBleAdvertising) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_NOT_ADVERTISING);
+    return;
+  }
+  
+  bleRemoteControl.stopAdvertising();
+  isBleAdvertising = false;
+  Serial.print(STATUS_PREFIX);
+  Serial.print(" ");
+  Serial.println(STATUS_OK);
+  Serial.println("BLE advertising stopped");
+}
+
+// Command to remove all stored pairings
+void cmdUnpair() {
+  if (bleRemoteControl.removeBonding()) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.println("Pairing information removed successfully");
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_COMMAND_FAILED);
+    Serial.println("Failed to remove pairing information");
+  }
+}
+
+// Command to press and release a key
+void cmdSendKey(String parameter) {
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing key parameter. Usage: key <keyname> [delay_ms]");
+    return;
+  }
+  
+  // Parse parameter for key and optional delay
+  String keyName;
+  int delayMs = 100; // Default delay
+  
+  int spaceIndex = parameter.indexOf(' ');
+  if (spaceIndex != -1) {
+    keyName = parameter.substring(0, spaceIndex);
+    String delayStr = parameter.substring(spaceIndex + 1);
+    delayStr.trim();
+    delayMs = delayStr.toInt();
+  } else {
+    keyName = parameter;
+  }
+  
+  if (!bleRemoteControl.isConnected()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_NOT_CONNECTED);
+    Serial.println("Not connected to a host device");
+    return;
+  }
+  
+  if (bleRemoteControl.sendKey(keyName, delayMs)) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.print("Key pressed and released: ");
+    Serial.print(keyName);
+    Serial.print(" (delay: ");
+    Serial.print(delayMs);
+    Serial.println("ms)");
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_KEY_NOT_FOUND);
+    Serial.print("Failed to process key: ");
+    Serial.println(keyName);
+  }
+}
+
+// Command to press a key (without releasing)
+void cmdPressKey(String parameter) {
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing key parameter. Usage: press <keyname>");
+    return;
+  }
+  
+  if (!bleRemoteControl.isConnected()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_NOT_CONNECTED);
+    Serial.println("Not connected to a host device");
+    return;
+  }
+  
+  if (bleRemoteControl.sendPress(parameter)) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.print("Key pressed: ");
+    Serial.println(parameter);
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_KEY_NOT_FOUND);
+    Serial.print("Failed to press key: ");
+    Serial.println(parameter);
+  }
+}
+
+// Command to release a previously pressed key
+void cmdReleaseKey(String parameter) {
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing key parameter. Usage: release <keyname>");
+    return;
+  }
+  
+  if (!bleRemoteControl.isConnected()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_NOT_CONNECTED);
+    Serial.println("Not connected to a host device");
+    return;
+  }
+  
+  if (bleRemoteControl.sendRelease(parameter)) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.print("Key released: ");
+    Serial.println(parameter);
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_KEY_NOT_FOUND);
+    Serial.print("Failed to release key: ");
+    Serial.println(parameter);
+  }
+}
+
+// Command to release all currently pressed keys
+void cmdReleaseAllKeys() {
+  if (!bleRemoteControl.isConnected()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_NOT_CONNECTED);
+    Serial.println("Not connected to a host device");
+    return;
+  }
+  
+  bleRemoteControl.releaseAll();
+  Serial.print(STATUS_PREFIX);
+  Serial.print(" ");
+  Serial.println(STATUS_OK);
+  Serial.println("All keys released");
+}
+
+// Command to set the reported battery level
+void cmdSetBatteryLevel(String parameter) {
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing level parameter. Usage: battery <level>");
+    return;
+  }
+  
+  int level = parameter.toInt();
+  if (level < 0 || level > 100) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Invalid battery level. Must be between 0 and 100");
+    return;
+  }
+  
+  bleRemoteControl.setBatteryLevel(level);
+  Serial.print(STATUS_PREFIX);
+  Serial.print(" ");
+  Serial.println(STATUS_OK);
+  Serial.print("Battery level set to ");
+  Serial.println(level);
+}
+
+// Command to show current BLE status
+void cmdShowBleStatus() {
+  Serial.println("BLE Status:");
+  Serial.print("  Device name: ");
+  Serial.println(BLE_DEVICE_NAME);
+  Serial.print("  Manufacturer: ");
+  Serial.println(BLE_MANUFACTURER_NAME);
+  Serial.print("  Connected: ");
+  Serial.println(bleRemoteControl.isConnected() ? "Yes" : "No");
+  Serial.print("  Advertising: ");
+  Serial.println(isBleAdvertising ? "Yes" : "No");
+  Serial.print("  Battery level: ");
+  Serial.print(bleRemoteControl.getBatteryLevel());
+  Serial.println("%");
+}
+#pragma endregion
+
+// Update the help command to include BLE commands
 void printHelp() {
   Serial.println("\n=== BLE Remote Control Console Commands ===");
   Serial.println("help                  - Shows this help");
-  Serial.println("setssid               - set the ssid of the WiFi network");
-  Serial.println("setpwd                - set the password of the WiFi network");
-  Serial.println("setpwd                - set the password of the WiFi network");
-  Serial.println("setip                 - set the static IP address (format: xxx.xxx.xxx.xxx)");
-  Serial.println("setgateway            - set the gateway address (format: xxx.xxx.xxx.xxx)");
-  Serial.println("save                  - save the current WiFi configuration to NVM");
-  Serial.println("connect               - connect to the WiFi network with the current configuration");
-  Serial.println("config                - shows the current WiFi configuration");
+  
+  Serial.println("\n--- WiFi Configuration ---");
+  Serial.println("setssid <ssid>        - Set the SSID of the WiFi network");
+  Serial.println("setpwd <password>     - Set the password of the WiFi network");
+  Serial.println("setip <ip>            - Set the static IP address (format: xxx.xxx.xxx.xxx)");
+  Serial.println("setgateway <ip>       - Set the gateway address (format: xxx.xxx.xxx.xxx)");
+  Serial.println("save                  - Save the current WiFi configuration to NVM");
+  Serial.println("connect               - Connect to the WiFi network with the current configuration");
+  Serial.println("config                - Shows the current WiFi configuration");
+  
+  Serial.println("\n--- BLE Remote Control ---");
+  Serial.println("pair                  - Start BLE advertising for pairing");
+  Serial.println("stoppair              - Stop BLE advertising");
+  Serial.println("unpair                - Remove all stored BLE pairings");
+  Serial.println("key <keyname> [delay] - Press and release a key with optional delay (ms)");
+  Serial.println("press <keyname>       - Press a key without releasing");
+  Serial.println("release <keyname>     - Release a previously pressed key");
+  Serial.println("releaseall            - Release all currently pressed keys");
+  Serial.println("battery <level>       - Set the reported battery level (0-100)");
+  Serial.println("ble-status            - Show current BLE connection status");
+  
+  Serial.println("\n--- System Commands ---");
   Serial.println("reboot                - Restarts the device");
   Serial.println("diag                  - Shows diagnostic information");
-  Serial.println("=========================================");
-  Serial.println("Note: Commands are case-insensitive.");
+  
+  Serial.println("\nNote: Commands are case-insensitive.");
   Serial.println("=========================================");
 }
 
 // BLE setup
 void setupBLE() {
-  bleRemoteControl.setConnectionCallback([](String message) {
-    // This function is called when a BLE connection is established
-    Serial.println("BLE - Device connected");
-  });
-  
-  // Set USB HID device properties
-  bleRemoteControl.set_vendor_id(VENDOR_ID);
-  bleRemoteControl.set_product_id(PRODUCT_ID);
-  bleRemoteControl.set_version(VERSION_ID);
+
   
   // Initialize BLE functionality, but don't start yet
   bleRemoteControl.begin();

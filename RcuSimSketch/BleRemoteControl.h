@@ -71,22 +71,22 @@
 #define KEY_PAUSE         0xD0
 
 //  Media Keys
-#define KEY_MEDIA_NEXT_TRACK    0x01
-#define KEY_MEDIA_PREVIOUS_TRACK 0x02
-#define KEY_MEDIA_STOP          0x04
-#define KEY_MEDIA_PLAY_PAUSE    0x08
-#define KEY_MEDIA_MUTE          0x10
-#define KEY_MEDIA_VOLUME_UP     0x20
-#define KEY_MEDIA_VOLUME_DOWN   0x40
-#define KEY_MEDIA_WWW_HOME      0x80
-#define KEY_MEDIA_LOCAL_MACHINE_BROWSER  0x100 // Opens "My Computer" on Windows
-#define KEY_MEDIA_CALCULATOR    0x200
-#define KEY_MEDIA_WWW_BOOKMARKS 0x400
-#define KEY_MEDIA_WWW_SEARCH    0x800
-#define KEY_MEDIA_WWW_STOP      0x1000
-#define KEY_MEDIA_WWW_BACK      0x2000
-#define KEY_MEDIA_MEDIA_SELECT  0x4000
-#define KEY_MEDIA_MAIL          0x8000
+#define KEY_MEDIA_PROG          0x00000001 // 00 00 01 - Consumer Control Program
+#define KEY_MEDIA_POWER         0x00000002 // 00 00 02 - Consumer Control Power
+#define KEY_MEDIA_TV            0x00000004 // 00 00 04 - Consumer Control TV
+#define KEY_MEDIA_MENU          0x00000008 // 00 00 08 - Consumer Control Menu
+#define KEY_MEDIA_OK            0x00000010 // 00 00 10 - Consumer Control OK
+#define KEY_MEDIA_UP            0x00000020 // 00 00 20 - Consumer Control Up
+#define KEY_MEDIA_DOWN          0x00000040 // 00 00 40 - Consumer Control Down
+#define KEY_MEDIA_LEFT          0x00000080 // 00 00 80 - Consumer Control Left
+#define KEY_MEDIA_RIGHT         0x00000100 // 00 01 00 - Consumer Control Right
+#define KEY_MEDIA_CHANNEL_UP    0x00000042 // 00 02 00 - Consumer Control Channel Up
+#define KEY_MEDIA_CHANNEL_DOWN  0x00000043 // 00 04 00 - Consumer Control Channel Down
+#define KEY_MEDIA_REWIND        0x00000800 // 00 08 00 - Consumer Control Rewind
+#define KEY_MEDIA_RECORD        0x00001000 // 00 10 00 - Consumer Control Record
+#define KEY_MEDIA_FAST_FORWARD  0x00002000 // 00 20 00 - Consumer Control Fast Forward
+#define KEY_MEDIA_NEXT          0x00004000 // 00 40 00 - Consumer Control Next
+#define KEY_MEDIA_PREVIOUS      0x00008000 // 00 80 00 - Consumer Control Previous
 
 //  Low level key report: up to 6 keys and shift, ctrl etc at once
 typedef struct

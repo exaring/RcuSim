@@ -31,17 +31,6 @@ extern Adafruit_SSD1306 display;
 void updateDisplay();
 #endif
 
-// Global variables
-extern bool isConfigMode;
-extern WiFiManager wifiManager;
-extern BleRemoteControl bleRemoteControl;
-extern Preferences preferences;
-extern bool deviceConnected;
-extern bool oldDeviceConnected;
-extern bool isBleAdvertising;
-extern unsigned long startTime;
-extern unsigned long bootCount;
-
 // Status update interval for display refresh
 extern unsigned long lastStatusUpdate;
 extern const unsigned long STATUS_UPDATE_INTERVAL;
@@ -62,6 +51,15 @@ void cmdShowConfig();
 void cmdDiag();
 void printHelp();
 void updateBootCounter();
+void cmdStartPairing();
+void cmdStopPairing();
+void cmdUnpair();
+void cmdSendKey(String key);
+void cmdPressKey(String key);
+void cmdReleaseKey(String key);
+void cmdReleaseAllKeys();
+void cmdSetBatteryLevel(String key);
+void cmdShowBleStatus();
 
 #ifdef USE_DISPLAY
 #include <Wire.h>

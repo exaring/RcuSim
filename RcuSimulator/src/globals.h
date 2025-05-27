@@ -12,15 +12,6 @@
 #define BLE_DEVICE_NAME "Examote One"  // Device name shown in Bluetooth settings
 #define BLE_MANUFACTURER_NAME "Exaring"     // Manufacturer name
 #define BLE_INITIAL_BATTERY_LEVEL 100         // Initial battery level (0-100)
-
-// USB HID parameters
-#define VENDOR_ID 0x05ac                 // Vendor ID (Apple in this example)
-#define PRODUCT_ID 0x820a                // Product ID
-#define VERSION_ID 0x0210                // Version number
-
-// SYSTEM PARAMETERS
-#define DEVICE_NAME "ESP32 BLE Remote Control" // Device name for the web server
-#define DEVICE_MANUFACTURER "Exaring"
 // =========================================================
 
 // Error codes
@@ -47,10 +38,6 @@ extern bool isConfigMode;
 extern WiFiManager wifiManager;
 extern BleRemoteControl bleRemoteControl;
 extern Preferences preferences;
-
-extern bool deviceConnected;
-extern bool oldDeviceConnected;
-extern bool isBleAdvertising;
 
 extern unsigned long startTime;
 extern unsigned long bootCount;

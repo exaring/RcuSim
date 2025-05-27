@@ -16,10 +16,6 @@
 #include <driver/adc.h>
 #include "sdkconfig.h"
 
-// USB HID parameters
-#define VENDOR_ID 0x02d01                 // Vendor ID 
-#define PRODUCT_ID 0xc02e                // Product ID
-#define VERSION_ID 0x0111                // Version number
 
 #if defined(CONFIG_ARDUHAL_ESP_LOG)
   #include "esp32-hal-log.h"
@@ -76,8 +72,9 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_PAGE(1),      0x0C,          //   USAGE_PAGE (Consumer)
   LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
   LOGICAL_MAXIMUM(1), 0x01,          //   LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x10,          //   REPORT_COUNT (16)
+  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1) - 1 bit per key
+/*
+  REPORT_COUNT(1),    0x1A,          //   REPORT_COUNT (26) 26 bits for 26 defined media keys
   USAGE(1),           0x07,          //   USAGE (Program)  
   USAGE(1),           0x30,          //   USAGE (Power)  
   USAGE(1),           0x1C,          //   USAGE (TV)          
@@ -94,9 +91,70 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE(1),           0xB3,          //   Usage (FastForward)  
   USAGE(1),           0xB5,          //   Usage (Next) 
   USAGE(1),           0xB6,          //   Usage (Previous)     
+  USAGE(2),           0xCD,          //   Usage (PlayPause)  
+  USAGE(1),           0xE2,          //   Usage (Mute)  
+  USAGE(1),           0xE9,          //   Usage (Volume up)  
+  USAGE(1),           0xEA,          //   Usage (Volume down)  
+  USAGE(2),           0x01, 0x02,    //   USAGE (Last Channel)   
+  USAGE(2),           0x21, 0x02,    //   USAGE (Assistant) 
+  USAGE(2),           0x23, 0x02,    //   Usage (Home)   
+  USAGE(2),           0x24, 0x02,    //   Usage (Back) 
+  USAGE(1),           0x0A,          //   Usage (App1 Netflix)  
+  USAGE(2),           0xD2,          //   Usage (App2 Waiputhek)  
   HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0)                  // END_COLLECTION
+  // -------- Padding to 32 Bits (6 Bits) ----------
+  REPORT_COUNT(1),    0x06,
+  REPORT_SIZE(1),     0x01,
+  HIDINPUT(1),        0x01,          // Input (Const,Array,Abs)
+  */
+ REPORT_COUNT(1),    0x10,          //   REPORT_COUNT (26) 26 bits for 26 defined media keys
+ USAGE(1),           0x07,          //   USAGE (Program)  
+ USAGE(1),           0x30,          //   USAGE (Power)  
+ USAGE(1),           0x1C,          //   USAGE (TV)          
+ USAGE(1),           0x40,          //   Usage (Menu)  
+ USAGE(1),           0x41,          //   Usage (Ok)      
+ USAGE(1),           0x42,          //   USAGE (Up)      
+ USAGE(1),           0x43,          //   Usage (Down)   
+ USAGE(1),           0x44,          //   USAGE (Left)  
+ USAGE(1),           0x45,          //   Usage (Right) 
+ USAGE(1),           0x9C,          //   Usage (Channel up)   
+ USAGE(1),           0x9D,          //   Usage (Channel down)  
+ USAGE(1),           0xB4,          //   Usage (Rewind)  
+ USAGE(1),           0xB2,          //   Usage (Record)     
+ USAGE(1),           0xB3,          //   Usage (FastForward)  
+ USAGE(1),           0xB5,          //   Usage (Next) 
+ USAGE(1),           0xB6,          //   Usage (Previous)     
+ HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+ END_COLLECTION(0)                  // END_COLLECTION
 };
+
+//  Media Key mappings
+#define KEY_MEDIA_PROG          0x00000001 // 00 00 01 - Consumer Control Program
+#define KEY_MEDIA_POWER         0x00000002 // 00 00 02 - Consumer Control Power
+#define KEY_MEDIA_TV            0x00000004 // 00 00 04 - Consumer Control TV
+#define KEY_MEDIA_MENU          0x00000008 // 00 00 08 - Consumer Control Menu
+#define KEY_MEDIA_OK            0x00000010 // 00 00 10 - Consumer Control OK
+#define KEY_MEDIA_UP            0x00000020 // 00 00 20 - Consumer Control Up
+#define KEY_MEDIA_DOWN          0x00000040 // 00 00 40 - Consumer Control Down
+#define KEY_MEDIA_LEFT          0x00000080 // 00 00 80 - Consumer Control Left
+#define KEY_MEDIA_RIGHT         0x00000100 // 00 01 00 - Consumer Control Right
+#define KEY_MEDIA_CHANNEL_UP    0x00000200 // 00 02 00 - Consumer Control Channel Up
+#define KEY_MEDIA_CHANNEL_DOWN  0x00000400 // 00 04 00 - Consumer Control Channel Down
+#define KEY_MEDIA_REWIND        0x00000800 // 00 08 00 - Consumer Control Rewind
+#define KEY_MEDIA_RECORD        0x00001000 // 00 10 00 - Consumer Control Record
+#define KEY_MEDIA_FAST_FORWARD  0x00002000 // 00 20 00 - Consumer Control Fast Forward
+#define KEY_MEDIA_NEXT          0x00004000 // 00 40 00 - Consumer Control Next
+#define KEY_MEDIA_PREVIOUS      0x00008000 // 00 80 00 - Consumer Control Previous
+#define KEY_MEDIA_PLAY_PAUSE    0x00010000 // 01 00 00 - Consumer Control Play/Pause
+#define KEY_MEDIA_MUTE          0x00020000 // 02 00 00 - Consumer Control Mute
+#define KEY_MEDIA_VOLUME_UP     0x00040000 // 04 00 00 - Consumer Control Volume Up
+#define KEY_MEDIA_VOLUME_DOWN   0x00080000 // 08 00 00 - Consumer Control Volume Down
+#define KEY_MEDIA_LASTCHANNEL   0x00100000 // 10 00 00 - Consumer Control Last Channel
+#define KEY_MEDIA_ASSISTANT     0x00200000 // 20 00 00 - Consumer Control Assistant
+#define KEY_MEDIA_HOME          0x00400000 // 40 00 00 - Consumer Control Home
+#define KEY_MEDIA_BACK          0x00800000 // 80 00 00 - Consumer Control Back
+#define KEY_MEDIA_APP_NETFLIX   0x01000000 // 00 00 00 - Consumer Control App Netflix
+#define KEY_MEDIA_APP_WAIPUTHEK 0x02000000 // 00 00 00 - Consumer Control App Waiputhek
 
 
 /**
@@ -159,31 +217,6 @@ static const uint8_t _hidReportDescriptor[] = {
 #define KEY_SCROLL_LOCK   0xCF
 #define KEY_PAUSE         0xD0
 
-//  Media Keys
-#define KEY_MEDIA_PROG          0x00000001 // 00 00 01 - Consumer Control Program
-#define KEY_MEDIA_POWER         0x00000002 // 00 00 02 - Consumer Control Power
-#define KEY_MEDIA_TV            0x00000004 // 00 00 04 - Consumer Control TV
-#define KEY_MEDIA_MENU          0x00000008 // 00 00 08 - Consumer Control Menu
-#define KEY_MEDIA_OK            0x00000010 // 00 00 10 - Consumer Control OK
-#define KEY_MEDIA_UP            0x00000020 // 00 00 20 - Consumer Control Up
-#define KEY_MEDIA_DOWN          0x00000040 // 00 00 40 - Consumer Control Down
-#define KEY_MEDIA_LEFT          0x00000080 // 00 00 80 - Consumer Control Left
-#define KEY_MEDIA_RIGHT         0x00000100 // 00 01 00 - Consumer Control Right
-#define KEY_MEDIA_CHANNEL_UP    0x00000200 // 00 02 00 - Consumer Control Channel Up
-#define KEY_MEDIA_CHANNEL_DOWN  0x00000400 // 00 04 00 - Consumer Control Channel Down
-#define KEY_MEDIA_REWIND        0x00000800 // 00 08 00 - Consumer Control Rewind
-#define KEY_MEDIA_RECORD        0x00001000 // 00 10 00 - Consumer Control Record
-#define KEY_MEDIA_FAST_FORWARD  0x00002000 // 00 20 00 - Consumer Control Fast Forward
-#define KEY_MEDIA_NEXT          0x00004000 // 00 40 00 - Consumer Control Next
-#define KEY_MEDIA_PREVIOUS      0x00008000 // 00 80 00 - Consumer Control Previous
-#define KEY_MEDIA_HOME          0x00
-#define KEY_MEDIA_VOL_UP        0x00
-#define KEY_MEDIA_VOL_DOWN      0x00
-#define KEY_MEDIA_VOL_MUTE      0x00
-#define KEY_MEDIA_APP1          0x00
-#define KEY_MEDIA_APP2          0x00
-
-
 
 //  Low level key report: up to 6 keys and shift, ctrl etc at once
 typedef struct
@@ -193,8 +226,8 @@ typedef struct
   uint8_t keys[6];
 } KeyReport;
 
-//  Media key report: 2 bytes to use for media keys
-typedef uint8_t MediaKeyReport[2];
+//  Media key report: 4 bytes to use for media keys as 26 keys are defined 
+typedef uint8_t MediaKeyReport[4];
 
 // Structure for key mapping
 struct KeyMapping {
@@ -205,7 +238,7 @@ struct KeyMapping {
 // Structure for media key mapping
 struct MediaKeyMapping {
   const char* name;
-  uint16_t keyCode;  // Using uint16_t for media keys
+  uint32_t keyCode;  // Using uint32_t for media keys as 26 keys equates to 32 bits
 };
 
 // Mapping from string names to regular keycodes
@@ -254,166 +287,47 @@ const KeyMapping keyMappings[] = {
 // Mapping from string names to media keycodes
 const MediaKeyMapping mediaKeyMappings[] = {
   {"power", KEY_MEDIA_POWER},
+  {"assistant", KEY_MEDIA_ASSISTANT},
   {"program", KEY_MEDIA_PROG},
   {"prog", KEY_MEDIA_PROG},
+  {"lastchannel", KEY_MEDIA_LASTCHANNEL},
+  {"last", KEY_MEDIA_LASTCHANNEL},
   {"tv", KEY_MEDIA_TV},
   {"mkup", KEY_MEDIA_UP},
   {"mkleft", KEY_MEDIA_LEFT},
   {"ok", KEY_MEDIA_OK},
   {"mkright", KEY_MEDIA_RIGHT},
+  {"back", KEY_MEDIA_BACK},
   {"mkdown", KEY_MEDIA_DOWN},
   {"menu", KEY_MEDIA_MENU},
+  {"volumeup", KEY_MEDIA_VOLUME_UP},
+  {"volup", KEY_MEDIA_VOLUME_UP},
+  {"home", KEY_MEDIA_HOME},
   {"channelup", KEY_MEDIA_CHANNEL_UP},
   {"chup", KEY_MEDIA_CHANNEL_UP},
+  {"volumedown", KEY_MEDIA_VOLUME_DOWN},
+  {"voldown", KEY_MEDIA_VOLUME_DOWN},
+  {"mute", KEY_MEDIA_MUTE},
   {"chdown", KEY_MEDIA_CHANNEL_DOWN},
   {"channeldown", KEY_MEDIA_CHANNEL_DOWN},
   {"rewind", KEY_MEDIA_REWIND},
+  {"playpause", KEY_MEDIA_PLAY_PAUSE},
+  {"pp", KEY_MEDIA_PLAY_PAUSE},
   {"fastforward", KEY_MEDIA_FAST_FORWARD},
   {"ff", KEY_MEDIA_FAST_FORWARD},
   {"previous", KEY_MEDIA_PREVIOUS},
   {"record", KEY_MEDIA_RECORD},
-  {"next", KEY_MEDIA_NEXT}
+  {"next", KEY_MEDIA_NEXT},
+  {"netflix", KEY_MEDIA_APP_NETFLIX},
+  {"waiputhek", KEY_MEDIA_APP_WAIPUTHEK},  
+  {"app1", KEY_MEDIA_APP_NETFLIX},
+  {"app2", KEY_MEDIA_APP_WAIPUTHEK}  
 };
-
-#define SHIFT 0x80
-const uint8_t _asciimap[128] =
-{
-	0x00,             // NUL
-	0x00,             // SOH
-	0x00,             // STX
-	0x00,             // ETX
-	0x00,             // EOT
-	0x00,             // ENQ
-	0x00,             // ACK
-	0x00,             // BEL
-	0x2a,			// BS	Backspace
-	0x2b,			// TAB	Tab
-	0x28,			// LF	Enter
-	0x00,             // VT
-	0x00,             // FF
-	0x00,             // CR
-	0x00,             // SO
-	0x00,             // SI
-	0x00,             // DEL
-	0x00,             // DC1
-	0x00,             // DC2
-	0x00,             // DC3
-	0x00,             // DC4
-	0x00,             // NAK
-	0x00,             // SYN
-	0x00,             // ETB
-	0x00,             // CAN
-	0x00,             // EM
-	0x00,             // SUB
-	0x00,             // ESC
-	0x00,             // FS
-	0x00,             // GS
-	0x00,             // RS
-	0x00,             // US
-
-	0x2c,		   //  ' '
-	0x1e|SHIFT,	   // !
-	0x34|SHIFT,	   // "
-	0x20|SHIFT,    // #
-	0x21|SHIFT,    // $
-	0x22|SHIFT,    // %
-	0x24|SHIFT,    // &
-	0x34,          // '
-	0x26|SHIFT,    // (
-	0x27|SHIFT,    // )
-	0x25|SHIFT,    // *
-	0x2e|SHIFT,    // +
-	0x36,          // ,
-	0x2d,          // -
-	0x37,          // .
-	0x38,          // /
-	0x27,          // 0
-	0x1e,          // 1
-	0x1f,          // 2
-	0x20,          // 3
-	0x21,          // 4
-	0x22,          // 5
-	0x23,          // 6
-	0x24,          // 7
-	0x25,          // 8
-	0x26,          // 9
-	0x33|SHIFT,      // :
-	0x33,          // ;
-	0x36|SHIFT,      // <
-	0x2e,          // =
-	0x37|SHIFT,      // >
-	0x38|SHIFT,      // ?
-	0x1f|SHIFT,      // @
-	0x04|SHIFT,      // A
-	0x05|SHIFT,      // B
-	0x06|SHIFT,      // C
-	0x07|SHIFT,      // D
-	0x08|SHIFT,      // E
-	0x09|SHIFT,      // F
-	0x0a|SHIFT,      // G
-	0x0b|SHIFT,      // H
-	0x0c|SHIFT,      // I
-	0x0d|SHIFT,      // J
-	0x0e|SHIFT,      // K
-	0x0f|SHIFT,      // L
-	0x10|SHIFT,      // M
-	0x11|SHIFT,      // N
-	0x12|SHIFT,      // O
-	0x13|SHIFT,      // P
-	0x14|SHIFT,      // Q
-	0x15|SHIFT,      // R
-	0x16|SHIFT,      // S
-	0x17|SHIFT,      // T
-	0x18|SHIFT,      // U
-	0x19|SHIFT,      // V
-	0x1a|SHIFT,      // W
-	0x1b|SHIFT,      // X
-	0x1c|SHIFT,      // Y
-	0x1d|SHIFT,      // Z
-	0x2f,          // [
-	0x31,          // bslash
-	0x30,          // ]
-	0x23|SHIFT,    // ^
-	0x2d|SHIFT,    // _
-	0x35,          // `
-	0x04,          // a
-	0x05,          // b
-	0x06,          // c
-	0x07,          // d
-	0x08,          // e
-	0x09,          // f
-	0x0a,          // g
-	0x0b,          // h
-	0x0c,          // i
-	0x0d,          // j
-	0x0e,          // k
-	0x0f,          // l
-	0x10,          // m
-	0x11,          // n
-	0x12,          // o
-	0x13,          // p
-	0x14,          // q
-	0x15,          // r
-	0x16,          // s
-	0x17,          // t
-	0x18,          // u
-	0x19,          // v
-	0x1a,          // w
-	0x1b,          // x
-	0x1c,          // y
-	0x1d,          // z
-	0x2f|SHIFT,    // {
-	0x31|SHIFT,    // |
-	0x30|SHIFT,    // }
-	0x35|SHIFT,    // ~
-	0				// DEL
-} PROGMEM;
 
 const int NUM_KEY_MAPPINGS = sizeof(keyMappings) / sizeof(KeyMapping);
 const int NUM_MEDIA_KEY_MAPPINGS = sizeof(mediaKeyMappings) / sizeof(MediaKeyMapping);
 
-
-class BleRemoteControl : public BLEServerCallbacks, public BLECharacteristicCallbacks
+class BleRemoteControl : public Print, public BLEServerCallbacks, public BLECharacteristicCallbacks
 {
 private:
   BLEHIDDevice* hid;
@@ -427,7 +341,6 @@ private:
   std::string deviceManufacturer;
   uint8_t     batteryLevel;
   bool connected = false;
-  bool isAdvertisingMode = false;
   uint32_t _delay_ms = 7;
   uint16_t vid = 0x05ac;
   uint16_t pid = 0x820a;
@@ -438,40 +351,47 @@ private:
   ConnectionCallback connectCallback = nullptr;
 
   bool isMediaKey(String key);
-  uint16_t getMediaKeyCode(String key);
+  uint32_t getMediaKeyCode(String key);
   uint8_t getKeyCode(String key);
   size_t press(uint8_t k);
-  size_t press(const MediaKeyReport k);
+  size_t pressMedia(const uint16_t keyCode);
   size_t release(uint8_t k);
+  size_t releaseMedia();
   size_t release(const MediaKeyReport k);
-  void sendKeyReport(KeyReport* keys);
-  void sendMediaReport(MediaKeyReport* keys);
-  void sendMediaReport(uint16_t key);
-  size_t press(String key);
-  size_t release(String key);
-  void delay_ms(uint64_t ms);
+  size_t write(uint8_t c);
+  size_t write(const MediaKeyReport c);
+  size_t write(const uint8_t *buffer, size_t size);
 
 public:
   BleRemoteControl(std::string deviceName = "ESP32 BLE Remote Control", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
   void begin(void);
-
-  bool startAdvertising(); // Method to specifically start advertising
-  void stopAdvertising();  // Method to specifically stop advertising
-  bool isAdvertising(void) { return this->isAdvertisingMode; } // Method to check if advertising
-  bool removeBonding();   // Method to remove all pairings and bondings
-
-  bool disconnect();      // Method to actively disconnect the connection
-  bool isConnected(void) { return this->connected; } // Method to check if connected
-
+  void end(void);
+  void sendReport(KeyReport* keys);
+  void sendReport(MediaKeyReport* keys);
+  void sendMediaKeyReport(uint16_t keys);
+  void sendMediaKeyReport(uint32_t keys);
+  size_t press(String key);
+  size_t release(String key);
   bool sendKey(String k, uint32_t delay_ms = 0);
   bool sendPress(String key);
   bool sendRelease(String key);
-  void releaseAll(void);
 
+  void releaseAll(void);
+  bool isConnected(void);
   void setBatteryLevel(uint8_t level);
   uint8_t getBatteryLevel(void) { return this->batteryLevel; }
-
-  void setDefaultDelay(uint32_t ms);
+  void setName(std::string deviceName);
+  void setDelay(uint32_t ms);
+  void set_vendor_id(uint16_t vid);
+  void set_product_id(uint16_t pid);
+  void set_version(uint16_t version);
+  void delay_ms(uint64_t ms);
+  bool disconnect();      // Method to actively disconnect the connection
+  bool removeBonding();   // Method to remove all pairings and bondings
+  void startAdvertising(); // Method to specifically start advertising
+  void stopAdvertising();  // Method to specifically stop advertising
+  // Set callback function for connection events
+  void setConnectionCallback(ConnectionCallback cb) { connectCallback = cb; }
 
 protected:
   virtual void onStarted(BLEServer *pServer) { };

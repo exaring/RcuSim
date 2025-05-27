@@ -1,93 +1,5 @@
 #include "BleRemoteControl.h"
 
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include <BLE2902.h>
-#include <BLEHIDDevice.h>
-#include "HIDTypes.h"
-#include <driver/adc.h>
-#include "sdkconfig.h"
-
-
-#if defined(CONFIG_ARDUHAL_ESP_LOG)
-  #include "esp32-hal-log.h"
-  #define LOG_TAG ""
-#else
-  #include "esp_log.h"
-  static const char* LOG_TAG = "BLEDevice";
-#endif
-
-
-// Report IDs:
-#define KEYBOARD_ID 0x01
-#define MEDIA_KEYS_ID 0x02
-
-static const uint8_t _hidReportDescriptor[] = {
-  USAGE_PAGE(1),      0x01,          // USAGE_PAGE (Generic Desktop Ctrls)
-  USAGE(1),           0x06,          // USAGE (Keyboard)
-  COLLECTION(1),      0x01,          // COLLECTION (Application)
-  // ------------------------------------------------- Keyboard
-  REPORT_ID(1),       KEYBOARD_ID,   //   REPORT_ID (1)
-  USAGE_PAGE(1),      0x07,          //   USAGE_PAGE (Kbrd/Keypad)
-  USAGE_MINIMUM(1),   0xE0,          //   USAGE_MINIMUM (0xE0)
-  USAGE_MAXIMUM(1),   0xE7,          //   USAGE_MAXIMUM (0xE7)
-  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //   Logical Maximum (1)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x08,          //   REPORT_COUNT (8)
-  HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  REPORT_COUNT(1),    0x01,          //   REPORT_COUNT (1) ; 1 byte (Reserved)
-  REPORT_SIZE(1),     0x08,          //   REPORT_SIZE (8)
-  HIDINPUT(1),        0x01,          //   INPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  REPORT_COUNT(1),    0x05,          //   REPORT_COUNT (5) ; 5 bits (Num lock, Caps lock, Scroll lock, Compose, Kana)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  USAGE_PAGE(1),      0x08,          //   USAGE_PAGE (LEDs)
-  USAGE_MINIMUM(1),   0x01,          //   USAGE_MINIMUM (0x01) ; Num Lock
-  USAGE_MAXIMUM(1),   0x05,          //   USAGE_MAXIMUM (0x05) ; Kana
-  HIDOUTPUT(1),       0x02,          //   OUTPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
-  REPORT_COUNT(1),    0x01,          //   REPORT_COUNT (1) ; 3 bits (Padding)
-  REPORT_SIZE(1),     0x03,          //   REPORT_SIZE (3)
-  HIDOUTPUT(1),       0x01,          //   OUTPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
-  REPORT_COUNT(1),    0x06,          //   REPORT_COUNT (6) ; 6 bytes (Keys)
-  REPORT_SIZE(1),     0x08,          //   REPORT_SIZE(8)
-  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM(0)
-  LOGICAL_MAXIMUM(1), 0x65,          //   LOGICAL_MAXIMUM(0x65) ; 101 keys
-  USAGE_PAGE(1),      0x07,          //   USAGE_PAGE (Kbrd/Keypad)
-  USAGE_MINIMUM(1),   0x00,          //   USAGE_MINIMUM (0)
-  USAGE_MAXIMUM(1),   0x65,          //   USAGE_MAXIMUM (0x65)
-  HIDINPUT(1),        0x00,          //   INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0),                 // END_COLLECTION
-  // ------------------------------------------------- Media Keys
-  USAGE_PAGE(1),      0x0C,          // USAGE_PAGE (Consumer)
-  USAGE(1),           0x01,          // USAGE (Consumer Control)
-  COLLECTION(1),      0x01,          // COLLECTION (Application)
-  REPORT_ID(1),       MEDIA_KEYS_ID, //   REPORT_ID (3)
-  USAGE_PAGE(1),      0x0C,          //   USAGE_PAGE (Consumer)
-  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //   LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x10,          //   REPORT_COUNT (16)
-  USAGE(1),           0x07,          //   USAGE (Program)  
-  USAGE(1),           0x30,          //   USAGE (Power)  
-  USAGE(1),           0x1C,          //   USAGE (TV)          
-  USAGE(1),           0x40,          //   Usage (Menu)  
-  USAGE(1),           0x41,          //   Usage (Ok)      
-  USAGE(1),           0x42,          //   USAGE (Up)      
-  USAGE(1),           0x43,          //   Usage (Down)   
-  USAGE(1),           0x44,          //   USAGE (Left)  
-  USAGE(1),           0x45,          //   Usage (Right) 
-  USAGE(1),           0x9C,          //   Usage (Channel up)   
-  USAGE(1),           0x9D,          //   Usage (Channel down)  
-  USAGE(1),           0xB4,          //   Usage (Rewind)  
-  USAGE(1),           0xB2,          //   Usage (Record)     
-  USAGE(1),           0xB3,          //   Usage (FastForward)  
-  USAGE(1),           0xB5,          //   Usage (Next) 
-  USAGE(1),           0xB6,          //   Usage (Previous)     
-  HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0)                  // END_COLLECTION
-};
-
 BleRemoteControl::BleRemoteControl(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
     : hid(0)
     , deviceName(std::string(deviceName).substr(0, 15))
@@ -96,7 +8,7 @@ BleRemoteControl::BleRemoteControl(std::string deviceName, std::string deviceMan
 
 void BleRemoteControl::begin(void)
 {
-  BLEDevice::init(String(deviceName.c_str()));
+  BLEDevice::init(deviceName);
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(this);
 
@@ -107,7 +19,7 @@ void BleRemoteControl::begin(void)
 
   outputKeyboard->setCallbacks(this);
 
-  hid->manufacturer()->setValue(String(deviceManufacturer.c_str()));
+  hid->manufacturer()->setValue(deviceManufacturer);
 
   hid->pnp(0x02, vid, pid, version);
   hid->hidInfo(0x00, 0x01);
@@ -187,6 +99,24 @@ void BleRemoteControl::sendReport(MediaKeyReport* keys)
   if (this->isConnected())
   {
     this->inputMediaKeys->setValue((uint8_t*)keys, sizeof(MediaKeyReport));
+    this->inputMediaKeys->notify();
+  }	
+}
+
+void BleRemoteControl::sendMediaKeyReport(uint16_t keys)
+{
+  if (this->isConnected())
+  {
+    this->inputMediaKeys->setValue(keys);
+    this->inputMediaKeys->notify();
+  }	
+}
+
+void BleRemoteControl::sendMediaKeyReport(uint32_t keys)
+{
+  if (this->isConnected())
+  {
+    this->inputMediaKeys->setValue(keys);
     this->inputMediaKeys->notify();
   }	
 }
@@ -328,9 +258,6 @@ const uint8_t _asciimap[128] =
 	0				// DEL
 };
 
-
-uint8_t USBPutChar(uint8_t c);
-
 // press() adds the specified key (printing, non-printing, or modifier)
 // to the persistent key report and sends the report.  Because of the way
 // USB HID works, the host acts like the key remains pressed until we
@@ -376,20 +303,6 @@ size_t BleRemoteControl::press(uint8_t k)
 	return 1;
 }
 
-size_t BleRemoteControl::press(const MediaKeyReport k)
-{
-    uint16_t k_16 = k[1] | (k[0] << 8);
-    uint16_t mediaKeyReport_16 = _mediaKeyReport[1] | (_mediaKeyReport[0] << 8);
-
-    mediaKeyReport_16 |= k_16;
-    _mediaKeyReport[0] = (uint8_t)((mediaKeyReport_16 & 0xFF00) >> 8);
-    _mediaKeyReport[1] = (uint8_t)(mediaKeyReport_16 & 0x00FF);
-
-  Serial.println("Sent: " + String(_mediaKeyReport[0], HEX) + " " + String(_mediaKeyReport[1], HEX));
-	sendReport(&_mediaKeyReport);
-	return 1;
-}
-
 // release() takes the specified key out of the persistent key report and
 // sends the report.  This tells the OS the key is no longer pressed and that
 // it shouldn't be repeated any more.
@@ -424,16 +337,111 @@ size_t BleRemoteControl::release(uint8_t k)
 	return 1;
 }
 
-size_t BleRemoteControl::release(const MediaKeyReport k)
+size_t BleRemoteControl::releaseMedia()
 {
-    uint16_t k_16 = k[1] | (k[0] << 8);
-    uint16_t mediaKeyReport_16 = _mediaKeyReport[1] | (_mediaKeyReport[0] << 8);
-    mediaKeyReport_16 &= ~k_16;
-    _mediaKeyReport[0] = (uint8_t)((mediaKeyReport_16 & 0xFF00) >> 8);
-    _mediaKeyReport[1] = (uint8_t)(mediaKeyReport_16 & 0x00FF);
+    _mediaKeyReport[0] = 0;
+    _mediaKeyReport[1] = 0;
+    _mediaKeyReport[2] = 0;
+    _mediaKeyReport[3] = 0;
 
 	sendReport(&_mediaKeyReport);
 	return 1;
+}
+
+bool BleRemoteControl::sendKey(String k, uint32_t delay_ms)
+{
+    // Press the key
+    if (!sendPress(k)) {
+        return false;
+    }
+    
+    // Wait for the specified delay
+    delay(delay_ms);
+    
+    // Release the key
+    return sendRelease(k);
+}
+
+size_t BleRemoteControl::pressMedia(const uint16_t keyCode)
+{
+	sendMediaKeyReport(keyCode);
+	return 1;
+}
+
+bool BleRemoteControl::sendPress(String k)
+{
+    // Check if the key is a media key
+    if (isMediaKey(k)) {
+        uint32_t mediaKeyCode = getMediaKeyCode(k);
+        if (mediaKeyCode != 0) {
+            pressMedia(mediaKeyCode);
+            return true;
+        }
+        return false;
+    }
+
+    // Determine key and press
+    uint8_t keyCode = 0;
+
+    // Check if keyName is a hex value (format: 0xXX)
+    if (k.startsWith("0x") && k.length() > 2) {
+        // Convert hex string to integer
+        char* endPtr;
+        keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
+        if (*endPtr != '\0') {
+            // Conversion failed
+            return false;
+        }
+    } else if (k.length() == 1) {
+        // Single character
+        keyCode = k.charAt(0);
+    } else {
+        // Special key via mapping
+        keyCode = getKeyCode(k);
+        if (keyCode == 0) {
+            return false;
+        }
+    }
+    
+    // Press key
+    press(keyCode);
+    return true;
+}
+
+bool BleRemoteControl::sendRelease(String k)
+{
+    // Check if the key is a media key
+    if (isMediaKey(k)) {
+        releaseMedia();
+        return true;
+    }
+
+    // Determine key and release
+    uint8_t keyCode = 0;
+
+    // Check if keyName is a hex value (format: 0xXX)
+    if (k.startsWith("0x") && k.length() > 2) {
+        // Convert hex string to integer
+        char* endPtr;
+        keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
+        if (*endPtr != '\0') {
+            // Conversion failed
+            return false;
+        }
+    } else if (k.length() == 1) {
+        // Single character
+        keyCode = k.charAt(0);
+    } else {
+        // Special key via mapping
+        keyCode = getKeyCode(k);
+        if (keyCode == 0) {
+            return false;
+        }
+    }
+    
+    // Release key
+    release(keyCode);
+    return true;
 }
 
 void BleRemoteControl::releaseAll(void)
@@ -451,6 +459,7 @@ void BleRemoteControl::releaseAll(void)
 	sendReport(&_mediaKeyReport);
 }
 
+
 size_t BleRemoteControl::write(uint8_t c)
 {
 	uint8_t p = press(c);  // Keydown
@@ -460,9 +469,9 @@ size_t BleRemoteControl::write(uint8_t c)
 
 size_t BleRemoteControl::write(const MediaKeyReport c)
 {
-	uint16_t p = press(c);  // Keydown
-	release(c);            // Keyup
-	return p;              // just return the result of press() since release() almost always returns 1
+	//uint16_t p = press(c);  // Keydown
+	//release(c);            // Keyup
+	return 0; // p;              // just return the result of press() since release() almost always returns 1
 }
 
 size_t BleRemoteControl::write(const uint8_t *buffer, size_t size) {
@@ -479,6 +488,7 @@ size_t BleRemoteControl::write(const uint8_t *buffer, size_t size) {
 	}
 	return n;
 }
+
 
 void BleRemoteControl::onConnect(BLEServer* pServer) {
   this->connected = true;
@@ -589,3 +599,41 @@ void BleRemoteControl::stopAdvertising() {
     ESP_LOGD(LOG_TAG, "Advertising stopped!");
   }
 }
+
+bool BleRemoteControl::isMediaKey(String key) {
+	key.toLowerCase();
+
+	// Check in media key mappings
+	for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
+		if (key.equals(mediaKeyMappings[i].name)) {
+		return true;
+		}
+	}  
+	return false;
+}
+
+uint32_t BleRemoteControl::getMediaKeyCode(String key) {
+	key.toLowerCase();
+	
+	for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
+	  if (key.equals(mediaKeyMappings[i].name)) {
+      Serial.println("Found media key: " + key + " with code: " + String(mediaKeyMappings[i].keyCode, HEX));
+		return mediaKeyMappings[i].keyCode;
+	  }
+	}	
+	return 0; // Not found
+}
+
+uint8_t BleRemoteControl::getKeyCode(String key) {
+	key.toLowerCase();
+	
+	for (int i = 0; i < NUM_KEY_MAPPINGS; i++) {
+	  if (key.equals(keyMappings[i].name)) {
+      Serial.println("Found key: " + key + " with code: " + String(keyMappings[i].keyCode, HEX));   
+      return keyMappings[i].keyCode;
+	  }
+	}
+	
+	return 0; // Not found
+}
+

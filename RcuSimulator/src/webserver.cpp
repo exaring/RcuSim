@@ -32,7 +32,7 @@ String generateHtmlHeader() {
 }
 
 String generateDeviceInfoSection() {
-  String html = "<div class='info'><strong>Device name:</strong> " DEVICE_NAME "</div>";
+  String html = "<div class='info'><strong>Device name:</strong> " BLE_DEVICE_NAME "</div>";
   html += "<div class='info'><strong>IP address:</strong> " + wifiManager.localIp().toString() + "</div>";
   html += "<div class='info'><strong>MAC address:</strong> " + wifiManager.macAddress() + "</div>";
   html += "<div class='info'><strong>WiFi:</strong> " + wifiManager.ssid() + "</div>";
@@ -119,28 +119,26 @@ void setupWebServer() {
     
     // API endpoint for pair command
     server.on("/api/pair", HTTP_GET, [](AsyncWebServerRequest *request) {
-      if (isBleAdvertising) {
-        sendJsonResponse(request, 400, "BLE advertising is already running");
-        return;
-      }
-      
       // Direct call to the extended BleRemoteControl method
-      bleRemoteControl.startAdvertising();
-      isBleAdvertising = true;
-      Serial.println("BLE advertising started for pairing...");
-      sendJsonResponse(request, 200, "BLE advertising started for pairing");
+      if (bleRemoteControl.startAdvertising())
+      {
+        Serial.println("BLE advertising started for pairing...");
+        sendJsonResponse(request, 200, "BLE advertising started for pairing");
+      } else {
+        Serial.println("Failed to start BLE advertising for pairing");
+        sendJsonResponse(request, 400, "Failed to start BLE advertising for pairing");
+      }
     });
 
     // API endpoint for stoppair command
     server.on("/api/stoppair", HTTP_GET, [](AsyncWebServerRequest *request) {
-      if (!isBleAdvertising) {
+      if (!bleRemoteControl.isAdvertising()) {
         sendJsonResponse(request, 400, "BLE advertising is not active");
         return;
       }
       
       // Direct call to the extended BleRemoteControl method
       bleRemoteControl.stopAdvertising();
-      isBleAdvertising = false;
       sendJsonResponse(request, 200, "BLE advertising stopped");
     });
 
@@ -346,8 +344,8 @@ void setupWebServer() {
     
     // System information
     JsonObject system = doc.createNestedObject("system");
-    system["deviceName"] = DEVICE_NAME;
-    system["manufacturer"] = DEVICE_MANUFACTURER;
+    system["deviceName"] = BLE_DEVICE_NAME;
+    system["manufacturer"] = BLE_MANUFACTURER_NAME;
     system["chipModel"] = ESP.getChipModel();
     system["chipRevision"] = ESP.getChipRevision();
     system["chipCores"] = ESP.getChipCores();

@@ -142,7 +142,10 @@ void processCommand(String command) {
       if (mediaKeyCode != 0) {
         // Create a MediaKeyReport and set the appropriate bit
         MediaKeyReport mediaKeyReport = {0, 0};
-        
+        mediaKeyReport[0] = (uint8_t)(mediaKeyCode & 0xFF);
+        mediaKeyReport[1] = (uint8_t)(mediaKeyCode >> 8);
+
+        /*
         if (mediaKeyCode > 0x80) {
           // The key is in the second byte (high byte)
           mediaKeyReport[0] = (uint8_t)(mediaKeyCode >> 8);
@@ -152,13 +155,14 @@ void processCommand(String command) {
           mediaKeyReport[0] = 0;
           mediaKeyReport[1] = (uint8_t)(mediaKeyCode & 0xFF);
         }
+        */
         
         // Press, wait, and release
         bleRemoteControl.press(mediaKeyReport);
         delay(keyDelay);
         bleRemoteControl.release(mediaKeyReport);
         
-        printStatus(STATUS_OK, "Media key '" + keyName + "' pressed and released after " + String(keyDelay) + "ms");
+        printStatus(STATUS_OK, "Media key '" + keyName + "' pressed and released after " + String(keyDelay) + "ms " + String(mediaKeyReport[0], HEX) + " " + String(mediaKeyReport[1], HEX));
         return;
       }
     }
