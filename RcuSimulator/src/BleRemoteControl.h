@@ -185,7 +185,7 @@ typedef struct
 } KeyReport;
 
 //  Media key report: 2 bytes to use for media keys
-typedef uint8_t MediaKeyReport[2];
+typedef uint16_t MediaKeyReport[2];
 
 // Structure for key mapping
 struct KeyMapping {

@@ -267,8 +267,13 @@ void BleRemoteControl::sendMediaReport(uint16_t key)
   if (this->isConnected())
   {
 	Serial.print("Final Media Key Report: ");
-	Serial.println((int)key, HEX);
-	this->inputMediaKeys->setValue(key);
+	Serial.print((int)key, HEX);
+  Serial.print(", 0x00,");
+  Serial.println(sizeof(MediaKeyReport));
+  MediaKeyReport rep;
+  rep[0] = key;
+  rep[1] = 0;
+	this->inputMediaKeys->setValue((uint8_t*) rep, sizeof(MediaKeyReport));
 	this->inputMediaKeys->notify();
   }	
 }
