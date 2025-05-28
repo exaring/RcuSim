@@ -10,10 +10,6 @@
 
 BleRemoteControl bleRemoteControl(BLE_DEVICE_NAME, BLE_MANUFACTURER_NAME, BLE_INITIAL_BATTERY_LEVEL);
 
-// Optional OLED Display Support
-// Uncomment the next line to enable OLED display support
-#define USE_DISPLAY
-
 #ifdef USE_DISPLAY
 // Function to update display with current status
 void updateDisplay() {

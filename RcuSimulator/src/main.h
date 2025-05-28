@@ -11,7 +11,7 @@
 
 // Optional OLED Display Support
 // Uncomment the next line to enable OLED display support
-#define USE_DISPLAY
+// #define USE_DISPLAY
 
 #ifdef USE_DISPLAY
 #include <Wire.h>

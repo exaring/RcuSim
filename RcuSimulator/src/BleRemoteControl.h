@@ -34,6 +34,21 @@
 #define MEDIA_KEYS_ID 0x02
 
 static const uint8_t _hidReportDescriptor[] = {
+    // Media Keys as reported by SEI Robotics
+  USAGE_PAGE(1),      0x0c,    		  // Usage Page (Consumer)        0x05, 0x0C,
+  USAGE(1),           0x01,         // USAGE (Consumer Control)     0x09, 0x01,   
+  COLLECTION(1),      0x01,         // COLLECTION (Application)     0xA1, 0x01,   
+  REPORT_ID(1),       MEDIA_KEYS_ID,// REPORT_ID (3)                0x85, MEDIA_KEYS_ID,       
+	REPORT_SIZE(1),     0x10,			    // 16 bit report size           0x75,0x10,   
+	REPORT_COUNT(1),    0x02,			    // 2 keys in parallel ??        0x95,0x02,
+	LOGICAL_MINIMUM(1), 0x01,			    // logical minimum              0x15,0x01,
+	LOGICAL_MAXIMUM(2), 0x8c, 0x02,		// logical miaximum             0x26,0x8c,0x02,
+	USAGE_MINIMUM(1) ,  0x01,			    // usage minimum                0x19,0x01,
+	USAGE_MAXIMUM(2),   0x8c, 0x02,		// usage miaximum               0x2a,0x8c,0x02,
+	HIDINPUT(1),        0x00,         //                              0x81,0x00,
+	END_COLLECTION(0),                //                              0xc0
+
+
   USAGE_PAGE(1),      0x01,          // USAGE_PAGE (Generic Desktop Ctrls)
   USAGE(1),           0x06,          // USAGE (Keyboard)
   COLLECTION(1),      0x01,          // COLLECTION (Application)
@@ -67,37 +82,8 @@ static const uint8_t _hidReportDescriptor[] = {
   USAGE_MINIMUM(1),   0x00,          //   USAGE_MINIMUM (0)
   USAGE_MAXIMUM(1),   0x65,          //   USAGE_MAXIMUM (0x65)
   HIDINPUT(1),        0x00,          //   INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0),                 // END_COLLECTION
-  // ------------------------------------------------- Media Keys
-  USAGE_PAGE(1),      0x0C,          // USAGE_PAGE (Consumer)
-  USAGE(1),           0x01,          // USAGE (Consumer Control)
-  COLLECTION(1),      0x01,          // COLLECTION (Application)
-  REPORT_ID(1),       MEDIA_KEYS_ID, //   REPORT_ID (3)
-  USAGE_PAGE(1),      0x0C,          //   USAGE_PAGE (Consumer)
-  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //   LOGICAL_MAXIMUM (1)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x10,          //   REPORT_COUNT (16)
-  USAGE(1),           0x07,          //   USAGE (Program)  
-  USAGE(1),           0x30,          //   USAGE (Power)  
-  USAGE(1),           0x1C,          //   USAGE (TV)          
-  USAGE(1),           0x40,          //   Usage (Menu)  
-  USAGE(1),           0x41,          //   Usage (Ok)      
-  USAGE(1),           0x42,          //   USAGE (Up)      
-  USAGE(1),           0x43,          //   Usage (Down)   
-  USAGE(1),           0x44,          //   USAGE (Left)  
-  USAGE(1),           0x45,          //   Usage (Right) 
-  USAGE(1),           0x9C,          //   Usage (Channel up)   
-  USAGE(1),           0x9D,          //   Usage (Channel down)  
-  USAGE(1),           0xB4,          //   Usage (Rewind)  
-  USAGE(1),           0xB2,          //   Usage (Record)     
-  USAGE(1),           0xB3,          //   Usage (FastForward)  
-  USAGE(1),           0xB5,          //   Usage (Next) 
-  USAGE(1),           0xB6,          //   Usage (Previous)     
-  HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0)                  // END_COLLECTION
 };
-
 
 /**
  * @brief Keyboard report map.
@@ -159,29 +145,34 @@ static const uint8_t _hidReportDescriptor[] = {
 #define KEY_SCROLL_LOCK   0xCF
 #define KEY_PAUSE         0xD0
 
+ 
 //  Media Keys
-#define KEY_MEDIA_PROG          0x00000001 // 00 00 01 - Consumer Control Program
-#define KEY_MEDIA_POWER         0x00000002 // 00 00 02 - Consumer Control Power
-#define KEY_MEDIA_TV            0x00000004 // 00 00 04 - Consumer Control TV
-#define KEY_MEDIA_MENU          0x00000008 // 00 00 08 - Consumer Control Menu
-#define KEY_MEDIA_OK            0x00000010 // 00 00 10 - Consumer Control OK
-#define KEY_MEDIA_UP            0x00000020 // 00 00 20 - Consumer Control Up
-#define KEY_MEDIA_DOWN          0x00000040 // 00 00 40 - Consumer Control Down
-#define KEY_MEDIA_LEFT          0x00000080 // 00 00 80 - Consumer Control Left
-#define KEY_MEDIA_RIGHT         0x00000100 // 00 01 00 - Consumer Control Right
-#define KEY_MEDIA_CHANNEL_UP    0x00000200 // 00 02 00 - Consumer Control Channel Up
-#define KEY_MEDIA_CHANNEL_DOWN  0x00000400 // 00 04 00 - Consumer Control Channel Down
-#define KEY_MEDIA_REWIND        0x00000800 // 00 08 00 - Consumer Control Rewind
-#define KEY_MEDIA_RECORD        0x00001000 // 00 10 00 - Consumer Control Record
-#define KEY_MEDIA_FAST_FORWARD  0x00002000 // 00 20 00 - Consumer Control Fast Forward
-#define KEY_MEDIA_NEXT          0x00004000 // 00 40 00 - Consumer Control Next
-#define KEY_MEDIA_PREVIOUS      0x00008000 // 00 80 00 - Consumer Control Previous
-#define KEY_MEDIA_HOME          0x00
-#define KEY_MEDIA_VOL_UP        0x00
-#define KEY_MEDIA_VOL_DOWN      0x00
-#define KEY_MEDIA_VOL_MUTE      0x00
-#define KEY_MEDIA_APP1          0x00
-#define KEY_MEDIA_APP2          0x00
+#define KEY_MEDIA_PROG          0x0700 // 00 00 01 - Consumer Control Program
+#define KEY_MEDIA_POWER         0x3000 // 00 00 02 - Consumer Control Power
+#define KEY_MEDIA_TV            0x1c00 // 00 00 04 - Consumer Control TV
+#define KEY_MEDIA_MENU          0x4000 // 00 00 08 - Consumer Control Menu
+#define KEY_MEDIA_OK            0x4100 // 00 00 10 - Consumer Control OK
+#define KEY_MEDIA_UP            0x4200 // 00 00 20 - Consumer Control Up
+#define KEY_MEDIA_DOWN          0x4300 // 00 00 40 - Consumer Control Down
+#define KEY_MEDIA_LEFT          0x4400 // 00 00 80 - Consumer Control Left
+#define KEY_MEDIA_RIGHT         0x4500 // 00 01 00 - Consumer Control Right
+#define KEY_MEDIA_CHANNEL_UP    0x9c00 // 00 02 00 - Consumer Control Channel Up
+#define KEY_MEDIA_CHANNEL_DOWN  0x9d00 // 00 04 00 - Consumer Control Channel Down
+#define KEY_MEDIA_REWIND        0xb400 // 00 08 00 - Consumer Control Rewind
+#define KEY_MEDIA_RECORD        0xb200 // 00 10 00 - Consumer Control Record
+#define KEY_MEDIA_FAST_FORWARD  0xb300 // 00 20 00 - Consumer Control Fast Forward
+#define KEY_MEDIA_NEXT          0xb500 // 00 40 00 - Consumer Control Next
+#define KEY_MEDIA_PREVIOUS      0xb600 // 00 80 00 - Consumer Control Previous
+#define KEY_MEDIA_PLAY_PAUSE    0xcd00
+#define KEY_MEDIA_LAST_CHANNEL  0x0102
+#define KEY_MEDIA_ASSISTANT     0x2102
+#define KEY_MEDIA_BACK          0x2402
+#define KEY_MEDIA_HOME          0x0224
+#define KEY_MEDIA_VOL_UP        0xe900
+#define KEY_MEDIA_VOL_DOWN      0xea00
+#define KEY_MEDIA_VOL_MUTE      0xe200
+#define KEY_MEDIA_APP1          0x0a00
+#define KEY_MEDIA_APP2          0xd200
 
 
 
@@ -257,22 +248,34 @@ const MediaKeyMapping mediaKeyMappings[] = {
   {"program", KEY_MEDIA_PROG},
   {"prog", KEY_MEDIA_PROG},
   {"tv", KEY_MEDIA_TV},
-  {"mkup", KEY_MEDIA_UP},
-  {"mkleft", KEY_MEDIA_LEFT},
-  {"ok", KEY_MEDIA_OK},
-  {"mkright", KEY_MEDIA_RIGHT},
-  {"mkdown", KEY_MEDIA_DOWN},
   {"menu", KEY_MEDIA_MENU},
+  {"ok", KEY_MEDIA_OK},
+  {"mkup", KEY_MEDIA_UP},
+  {"mkdown", KEY_MEDIA_DOWN},
+  {"mkleft", KEY_MEDIA_LEFT},
+  {"mkright", KEY_MEDIA_RIGHT},
   {"channelup", KEY_MEDIA_CHANNEL_UP},
   {"chup", KEY_MEDIA_CHANNEL_UP},
   {"chdown", KEY_MEDIA_CHANNEL_DOWN},
   {"channeldown", KEY_MEDIA_CHANNEL_DOWN},
+
   {"rewind", KEY_MEDIA_REWIND},
+  {"record", KEY_MEDIA_RECORD},
   {"fastforward", KEY_MEDIA_FAST_FORWARD},
   {"ff", KEY_MEDIA_FAST_FORWARD},
+  {"next", KEY_MEDIA_NEXT},
   {"previous", KEY_MEDIA_PREVIOUS},
-  {"record", KEY_MEDIA_RECORD},
-  {"next", KEY_MEDIA_NEXT}
+  {"playpause",KEY_MEDIA_PLAY_PAUSE},
+  {"lastchannel",KEY_MEDIA_LAST_CHANNEL},
+  {"assistant",KEY_MEDIA_ASSISTANT},
+  {"back",KEY_MEDIA_BACK},
+  {"home",KEY_MEDIA_HOME},
+  {"volup",KEY_MEDIA_VOL_UP},
+  {"voldown",KEY_MEDIA_VOL_DOWN},
+  {"mute",KEY_MEDIA_VOL_MUTE},
+  {"app1",KEY_MEDIA_APP1},
+  {"app2",KEY_MEDIA_APP2}
+
 };
 
 #define SHIFT 0x80
