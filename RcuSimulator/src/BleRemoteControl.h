@@ -33,56 +33,61 @@
 #define KEYBOARD_ID 0x01
 #define MEDIA_KEYS_ID 0x02
 
+// HID Report Descriptor matching the analyzed remote control (a4:c1:38:81:21:05)
 static const uint8_t _hidReportDescriptor[] = {
-    // Media Keys as reported by SEI Robotics
-  USAGE_PAGE(1),      0x0c,    		  // Usage Page (Consumer)        0x05, 0x0C,
-  USAGE(1),           0x01,         // USAGE (Consumer Control)     0x09, 0x01,   
-  COLLECTION(1),      0x01,         // COLLECTION (Application)     0xA1, 0x01,   
-  REPORT_ID(1),       MEDIA_KEYS_ID,// REPORT_ID (3)                0x85, MEDIA_KEYS_ID,       
-	REPORT_SIZE(1),     0x10,			    // 16 bit report size           0x75,0x10,   
-	REPORT_COUNT(1),    0x02,			    // 2 keys in parallel ??        0x95,0x02,
-	LOGICAL_MINIMUM(1), 0x01,			    // logical minimum              0x15,0x01,
-	LOGICAL_MAXIMUM(2), 0x8c, 0x02,		// logical miaximum             0x26,0x8c,0x02,
-	USAGE_MINIMUM(1) ,  0x01,			    // usage minimum                0x19,0x01,
-	USAGE_MAXIMUM(2),   0x8c, 0x02,		// usage miaximum               0x2a,0x8c,0x02,
-	HIDINPUT(1),        0x00,         //                              0x81,0x00,
-	END_COLLECTION(0),                //                              0xc0
-
-
-  USAGE_PAGE(1),      0x01,          // USAGE_PAGE (Generic Desktop Ctrls)
-  USAGE(1),           0x06,          // USAGE (Keyboard)
-  COLLECTION(1),      0x01,          // COLLECTION (Application)
-  // ------------------------------------------------- Keyboard
-  REPORT_ID(1),       KEYBOARD_ID,   //   REPORT_ID (1)
-  USAGE_PAGE(1),      0x07,          //   USAGE_PAGE (Kbrd/Keypad)
-  USAGE_MINIMUM(1),   0xE0,          //   USAGE_MINIMUM (0xE0)
-  USAGE_MAXIMUM(1),   0xE7,          //   USAGE_MAXIMUM (0xE7)
-  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
-  LOGICAL_MAXIMUM(1), 0x01,          //   Logical Maximum (1)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  REPORT_COUNT(1),    0x08,          //   REPORT_COUNT (8)
-  HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  REPORT_COUNT(1),    0x01,          //   REPORT_COUNT (1) ; 1 byte (Reserved)
-  REPORT_SIZE(1),     0x08,          //   REPORT_SIZE (8)
-  HIDINPUT(1),        0x01,          //   INPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  REPORT_COUNT(1),    0x05,          //   REPORT_COUNT (5) ; 5 bits (Num lock, Caps lock, Scroll lock, Compose, Kana)
-  REPORT_SIZE(1),     0x01,          //   REPORT_SIZE (1)
-  USAGE_PAGE(1),      0x08,          //   USAGE_PAGE (LEDs)
-  USAGE_MINIMUM(1),   0x01,          //   USAGE_MINIMUM (0x01) ; Num Lock
-  USAGE_MAXIMUM(1),   0x05,          //   USAGE_MAXIMUM (0x05) ; Kana
-  HIDOUTPUT(1),       0x02,          //   OUTPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
-  REPORT_COUNT(1),    0x01,          //   REPORT_COUNT (1) ; 3 bits (Padding)
-  REPORT_SIZE(1),     0x03,          //   REPORT_SIZE (3)
-  HIDOUTPUT(1),       0x01,          //   OUTPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
-  REPORT_COUNT(1),    0x06,          //   REPORT_COUNT (6) ; 6 bytes (Keys)
-  REPORT_SIZE(1),     0x08,          //   REPORT_SIZE(8)
-  LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM(0)
-  LOGICAL_MAXIMUM(1), 0x65,          //   LOGICAL_MAXIMUM(0x65) ; 101 keys
-  USAGE_PAGE(1),      0x07,          //   USAGE_PAGE (Kbrd/Keypad)
-  USAGE_MINIMUM(1),   0x00,          //   USAGE_MINIMUM (0)
-  USAGE_MAXIMUM(1),   0x65,          //   USAGE_MAXIMUM (0x65)
-  HIDINPUT(1),        0x00,          //   INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  END_COLLECTION(0)                  // END_COLLECTION
+  // Keyboard Report (Report ID 1)
+  USAGE_PAGE(1),      0x01,        // Usage Page (Generic Desktop Ctrls)
+  USAGE(1),           0x06,        // Usage (Keyboard)
+  COLLECTION(1),      0x01,        // Collection (Application)
+  REPORT_ID(1),       0x01,        //   Report ID (1)
+  USAGE_PAGE(1),      0x07,        //   Usage Page (Kbrd/Keypad)
+  USAGE_MINIMUM(1),   0xE0,        //   Usage Minimum (0xE0) - Left Control
+  USAGE_MAXIMUM(1),   0xE7,        //   Usage Maximum (0xE7) - Right GUI
+  LOGICAL_MINIMUM(1), 0x00,        //   Logical Minimum (0)
+  LOGICAL_MAXIMUM(1), 0x01,        //   Logical Maximum (1)
+  REPORT_SIZE(1),     0x01,        //   Report Size (1 bit)
+  REPORT_COUNT(1),    0x08,        //   Report Count (8) - 8 modifier keys
+  HIDINPUT(1),        0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  REPORT_COUNT(1),    0x01,        //   Report Count (1) - 1 reserved byte
+  REPORT_SIZE(1),     0x08,        //   Report Size (8 bits)
+  HIDINPUT(1),        0x03,        //   Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  REPORT_COUNT(1),    0x05,        //   Report Count (5) - 5 LED bits
+  REPORT_SIZE(1),     0x01,        //   Report Size (1 bit)
+  USAGE_PAGE(1),      0x08,        //   Usage Page (LEDs)
+  USAGE_MINIMUM(1),   0x01,        //   Usage Minimum (Num Lock)
+  USAGE_MAXIMUM(1),   0x05,        //   Usage Maximum (Kana)
+  HIDOUTPUT(1),       0x02,        //   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+  REPORT_COUNT(1),    0x01,        //   Report Count (1) - 1 padding byte
+  REPORT_SIZE(1),     0x03,        //   Report Size (3 bits)
+  HIDOUTPUT(1),       0x03,        //   Output (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+  REPORT_COUNT(1),    0x06,        //   Report Count (6) - 6 key slots
+  REPORT_SIZE(1),     0x08,        //   Report Size (8 bits)
+  LOGICAL_MINIMUM(1), 0x00,        //   Logical Minimum (0)
+  LOGICAL_MAXIMUM(1), 0xFF,        //   Logical Maximum (255)
+  USAGE_PAGE(1),      0x07,        //   Usage Page (Kbrd/Keypad)
+  USAGE_MINIMUM(1),   0x00,        //   Usage Minimum (0x00)
+  USAGE_MAXIMUM(1),   0xFF,        //   Usage Maximum (0xFF)
+  HIDINPUT(1),        0x00,        //   Input (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  END_COLLECTION(0),               // End Collection
+  
+  // Consumer Control Report (Report ID 2)
+  USAGE_PAGE(1),      0x0C,        // Usage Page (Consumer)
+  USAGE(1),           0x01,        // Usage (Consumer Control)
+  COLLECTION(1),      0x01,        // Collection (Application)
+  REPORT_ID(1),       0x02,        //   Report ID (2)
+  REPORT_SIZE(1),     0x10,        //   Report Size (16 bits)
+  REPORT_COUNT(1),    0x02,        //   Report Count (2) - 2x 16-bit consumer codes
+  LOGICAL_MINIMUM(1), 0x01,        //   Logical Minimum (1)
+  LOGICAL_MAXIMUM(2), 0xFF, 0x03,  //   Logical Maximum (1023)
+  USAGE_MINIMUM(1),   0x01,        //   Usage Minimum (0x01)
+  USAGE_MAXIMUM(2),   0xFF, 0x03,  //   Usage Maximum (0x3FF)
+  HIDINPUT(1),        0x60,        //   Input (Data,Array,Abs,No Wrap,Linear,Preferred State,Null State)
+  REPORT_COUNT(1),    0x01,        //   Report Count (1) - 1 padding byte
+  REPORT_SIZE(1),     0x08,        //   Report Size (8 bits)
+  LOGICAL_MINIMUM(1), 0x00,        //   Logical Minimum (0)
+  LOGICAL_MAXIMUM(1), 0xFF,        //   Logical Maximum (255)
+  HIDINPUT(1),        0x03,        //   Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  END_COLLECTION(0),               // End Collection
 };
 
 /**
@@ -146,36 +151,39 @@ static const uint8_t _hidReportDescriptor[] = {
 #define KEY_PAUSE         0xD0
 
  
-//  Media Keys
-#define KEY_MEDIA_PROG          0x0700 // 00 00 01 - Consumer Control Program
-#define KEY_MEDIA_POWER         0x3000 // 00 00 02 - Consumer Control Power
-#define KEY_MEDIA_TV            0x1c00 // 00 00 04 - Consumer Control TV
-#define KEY_MEDIA_MENU          0x4000 // 00 00 08 - Consumer Control Menu
-#define KEY_MEDIA_OK            0x4100 // 00 00 10 - Consumer Control OK
-#define KEY_MEDIA_UP            0x4200 // 00 00 20 - Consumer Control Up
-#define KEY_MEDIA_DOWN          0x4300 // 00 00 40 - Consumer Control Down
-#define KEY_MEDIA_LEFT          0x4400 // 00 00 80 - Consumer Control Left
-#define KEY_MEDIA_RIGHT         0x4500 // 00 01 00 - Consumer Control Right
-#define KEY_MEDIA_CHANNEL_UP    0x9c00 // 00 02 00 - Consumer Control Channel Up
-#define KEY_MEDIA_CHANNEL_DOWN  0x9d00 // 00 04 00 - Consumer Control Channel Down
-#define KEY_MEDIA_REWIND        0xb400 // 00 08 00 - Consumer Control Rewind
-#define KEY_MEDIA_RECORD        0xb200 // 00 10 00 - Consumer Control Record
-#define KEY_MEDIA_FAST_FORWARD  0xb300 // 00 20 00 - Consumer Control Fast Forward
-#define KEY_MEDIA_NEXT          0xb500 // 00 40 00 - Consumer Control Next
-#define KEY_MEDIA_PREVIOUS      0xb600 // 00 80 00 - Consumer Control Previous
-#define KEY_MEDIA_PLAY_PAUSE    0xcd00
-#define KEY_MEDIA_LAST_CHANNEL  0x0102
-#define KEY_MEDIA_ASSISTANT     0x2102
-#define KEY_MEDIA_BACK          0x2402
-#define KEY_MEDIA_HOME          0x0224
-#define KEY_MEDIA_VOL_UP        0xe900
-#define KEY_MEDIA_VOL_DOWN      0xea00
-#define KEY_MEDIA_VOL_MUTE      0xe200
-#define KEY_MEDIA_APP1          0x0a00
-#define KEY_MEDIA_APP2          0xd200
-
-
-
+// Consumer Control Keys (updated to match analyzed descriptor)
+// Values must be within 1-1023 range as per descriptor
+#define KEY_MEDIA_MUTE              0x00E2
+#define KEY_MEDIA_VOL_UP            0x9C00
+#define KEY_MEDIA_VOL_DOWN          0x9D00
+#define KEY_MEDIA_PLAY_PAUSE        0x00CD
+#define KEY_MEDIA_NEXT              0x00B5
+#define KEY_MEDIA_PREVIOUS          0x00B6
+#define KEY_MEDIA_STOP              0x00B7
+#define KEY_MEDIA_FAST_FORWARD      0x00B3
+#define KEY_MEDIA_REWIND            0x00B4
+#define KEY_MEDIA_RECORD            0x00B2
+#define KEY_MEDIA_MENU              0x0040
+#define KEY_MEDIA_HOME              0x0223
+#define KEY_MEDIA_BACK              0x0224
+#define KEY_MEDIA_OK                0x0041
+#define KEY_MEDIA_UP                0x0042
+#define KEY_MEDIA_DOWN              0x0043
+#define KEY_MEDIA_LEFT              0x0044
+#define KEY_MEDIA_RIGHT             0x0045
+#define KEY_MEDIA_CHANNEL_UP        0x009C
+#define KEY_MEDIA_CHANNEL_DOWN      0x009D
+#define KEY_MEDIA_POWER             0x0030
+#define KEY_MEDIA_TV                0x001C
+#define KEY_MEDIA_ASSISTANT         0x0221
+#define KEY_MEDIA_APP1              0x0294
+#define KEY_MEDIA_APP2              0x0295
+/*
+#define KEY_MEDIA_VOL_UP            0x00E9
+#define KEY_MEDIA_VOL_DOWN          0x00EA
+#define KEY_MEDIA_CHANNEL_UP        0x009C
+#define KEY_MEDIA_CHANNEL_DOWN      0x009D
+*/
 //  Low level key report: up to 6 keys and shift, ctrl etc at once
 typedef struct
 {
@@ -184,8 +192,13 @@ typedef struct
   uint8_t keys[6];
 } KeyReport;
 
-//  Media key report: 2 bytes to use for media keys
-typedef uint16_t MediaKeyReport[2];
+//  Media key report: Updated to match analyzed descriptor (5 bytes total)
+typedef struct
+{
+  uint16_t consumer1;  // First 16-bit consumer code
+  uint16_t consumer2;  // Second 16-bit consumer code  
+  uint8_t padding;     // Padding byte (constant)
+} MediaKeyReport;
 
 // Structure for key mapping
 struct KeyMapping {
@@ -242,11 +255,9 @@ const KeyMapping keyMappings[] = {
   {"pause", KEY_PAUSE}
 };
 
-// Mapping from string names to media keycodes
+// Mapping from string names to media keycodes (updated for analyzed descriptor)
 const MediaKeyMapping mediaKeyMappings[] = {
   {"power", KEY_MEDIA_POWER},
-  {"program", KEY_MEDIA_PROG},
-  {"prog", KEY_MEDIA_PROG},
   {"tv", KEY_MEDIA_TV},
   {"menu", KEY_MEDIA_MENU},
   {"ok", KEY_MEDIA_OK},
@@ -258,24 +269,22 @@ const MediaKeyMapping mediaKeyMappings[] = {
   {"chup", KEY_MEDIA_CHANNEL_UP},
   {"chdown", KEY_MEDIA_CHANNEL_DOWN},
   {"channeldown", KEY_MEDIA_CHANNEL_DOWN},
-
   {"rewind", KEY_MEDIA_REWIND},
   {"record", KEY_MEDIA_RECORD},
   {"fastforward", KEY_MEDIA_FAST_FORWARD},
   {"ff", KEY_MEDIA_FAST_FORWARD},
   {"next", KEY_MEDIA_NEXT},
   {"previous", KEY_MEDIA_PREVIOUS},
-  {"playpause",KEY_MEDIA_PLAY_PAUSE},
-  {"lastchannel",KEY_MEDIA_LAST_CHANNEL},
-  {"assistant",KEY_MEDIA_ASSISTANT},
-  {"back",KEY_MEDIA_BACK},
-  {"home",KEY_MEDIA_HOME},
-  {"volup",KEY_MEDIA_VOL_UP},
-  {"voldown",KEY_MEDIA_VOL_DOWN},
-  {"mute",KEY_MEDIA_VOL_MUTE},
-  {"app1",KEY_MEDIA_APP1},
-  {"app2",KEY_MEDIA_APP2}
-
+  {"playpause", KEY_MEDIA_PLAY_PAUSE},
+  {"stop", KEY_MEDIA_STOP},
+  {"assistant", KEY_MEDIA_ASSISTANT},
+  {"back", KEY_MEDIA_BACK},
+  {"home", KEY_MEDIA_HOME},
+  {"volup", KEY_MEDIA_VOL_UP},
+  {"voldown", KEY_MEDIA_VOL_DOWN},
+  {"mute", KEY_MEDIA_MUTE},
+  {"app1", KEY_MEDIA_APP1},
+  {"app2", KEY_MEDIA_APP2}
 };
 
 #define SHIFT 0x80
@@ -450,6 +459,7 @@ private:
   void sendKeyReport(KeyReport* keys);
   void sendMediaReport(MediaKeyReport* keys);
   void sendMediaReport(uint16_t key);
+  void sendMediaReport(uint16_t key1, uint16_t key2);
   size_t press(String key);
   size_t release(String key);
   void delay_ms(uint64_t ms);
@@ -467,6 +477,8 @@ public:
   bool isConnected(void) { return this->connected; } // Method to check if connected
 
   bool sendKey(String k, uint32_t delay_ms = 0);
+  bool sendMediaKeyHex(String k, uint8_t position, uint32_t delay_ms);
+  bool sendMediaKey(uint16_t first, uint16_t second, uint32_t delay_ms);
   bool sendPress(String key);
   bool sendRelease(String key);
   void releaseAll(void);

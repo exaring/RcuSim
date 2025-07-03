@@ -1,10 +1,87 @@
 #include "BleRemoteControl.h"
 
+bool parseHexString(String hexStr, uint16_t* result) {
+  if (hexStr.length() == 0 || result == nullptr) {
+    return false;
+  }
+  
+  // String trimmen
+  hexStr.trim();
+  
+  // Leerer String nach trim
+  if (hexStr.length() == 0) {
+    return false;
+  }
+  
+  // Prefix entfernen falls vorhanden
+  String cleanHex = hexStr;
+  if (hexStr.startsWith("0x") || hexStr.startsWith("0X")) {
+    cleanHex = hexStr.substring(2);
+  }
+  
+  // Prüfen ob noch Zeichen übrig sind
+  if (cleanHex.length() == 0) {
+    return false;
+  }
+  
+  // Maximale Länge für 16-bit prüfen (4 Hex-Zeichen = FFFF)
+  if (cleanHex.length() > 4) {
+    return false;
+  }
+  
+  // Prüfen ob alle Zeichen gültige Hex-Zeichen sind
+  for (unsigned int i = 0; i < cleanHex.length(); i++) {
+    char c = cleanHex.charAt(i);
+    if (!((c >= '0' && c <= '9') || 
+          (c >= 'A' && c <= 'F') || 
+          (c >= 'a' && c <= 'f'))) {
+      return false;
+    }
+  }
+  
+  // String zu uppercase konvertieren für einheitliche Verarbeitung
+  cleanHex.toUpperCase();
+  
+  // Hex-String in Zahl konvertieren
+  char* endPtr;
+  unsigned long value = strtoul(cleanHex.c_str(), &endPtr, 16);
+  
+  // Prüfen ob Konvertierung erfolgreich war
+  if (*endPtr != '\0') {
+    return false;
+  }
+  
+  // Prüfen ob Wert im 16-bit Bereich liegt
+  if (value > 0xFFFF) {
+    return false;
+  }
+  
+  // Ergebnis setzen
+  *result = (uint16_t)value;
+  return true;
+}
+
+/**
+ * Überladene Version die das Ergebnis direkt zurückgibt
+ * Gibt 0 zurück bei Parsing-Fehlern (verwende die Pointer-Version für Fehlerbehandlung)
+ */
+uint16_t parseHexString(String hexStr) {
+  uint16_t result = 0;
+  parseHexString(hexStr, &result);
+  return result;
+}
+
+
 BleRemoteControl::BleRemoteControl(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
     : hid(0)
     , deviceName(std::string(deviceName).substr(0, 15))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
-    , batteryLevel(batteryLevel) {}
+    , batteryLevel(batteryLevel) {
+    // Initialize media key report struct
+    _mediaKeyReport.consumer1 = 0;
+    _mediaKeyReport.consumer2 = 0;
+    _mediaKeyReport.padding = 0;
+}
 
 void BleRemoteControl::begin(void)
 {
@@ -188,6 +265,35 @@ bool BleRemoteControl::sendPress(String k)
     return true;
 }
 
+bool BleRemoteControl::sendMediaKeyHex(String k, uint8_t position, uint32_t delay_ms)
+{
+  uint16_t result = 0;
+  if(!parseHexString(k, &result)) {
+    return false;
+  } else {
+    if(position == 1) {
+      sendMediaReport(result);
+    } else if (position == 2)
+    {
+      sendMediaReport(0, result);
+    } else {
+      return false;
+    }
+    delay(delay_ms);
+    sendMediaReport((uint16_t)0);
+    return true;
+  }
+}
+
+bool BleRemoteControl::sendMediaKey(uint16_t first, uint16_t second, uint32_t delay_ms)
+{
+  sendMediaReport(first, second);
+  delay(delay_ms);
+  sendMediaReport(0,0);
+  return true;
+}
+
+
 bool BleRemoteControl::sendRelease(String k)
 {
     // Check if the key is a media key
@@ -232,13 +338,12 @@ void BleRemoteControl::releaseAll(void)
 	_keyReport.keys[4] = 0;
 	_keyReport.keys[5] = 0;
 	_keyReport.modifiers = 0;
-    _mediaKeyReport[0] = 0;
-    _mediaKeyReport[1] = 0;
+    _mediaKeyReport.consumer1 = 0;
+    _mediaKeyReport.consumer2 = 0;
+    _mediaKeyReport.padding = 0;
 	sendKeyReport(&_keyReport);
 	sendMediaReport(&_mediaKeyReport);
 }
-
-
 
 void BleRemoteControl::sendKeyReport(KeyReport* keys)
 {
@@ -254,9 +359,12 @@ void BleRemoteControl::sendMediaReport(MediaKeyReport* keys)
   if (this->isConnected())
   {
 	Serial.print("Sending Media Key Report: ");
-	Serial.print((int)keys[0], BIN);
-	Serial.print(" ");
-	Serial.println((int)keys[1], BIN);
+	Serial.print("Consumer1: 0x");
+	Serial.print(keys->consumer1, HEX);
+	Serial.print(", Consumer2: 0x");
+	Serial.print(keys->consumer2, HEX);
+	Serial.print(", Padding: 0x");
+	Serial.println(keys->padding, HEX);
     this->inputMediaKeys->setValue((uint8_t*)keys, sizeof(MediaKeyReport));
     this->inputMediaKeys->notify();
   }	
@@ -266,18 +374,35 @@ void BleRemoteControl::sendMediaReport(uint16_t key)
 {
   if (this->isConnected())
   {
-	Serial.print("Final Media Key Report: ");
-	Serial.print((int)key, HEX);
-  Serial.print(", 0x00,");
-  Serial.println(sizeof(MediaKeyReport));
-  MediaKeyReport rep;
-  rep[0] = key;
-  rep[1] = 0;
-	this->inputMediaKeys->setValue((uint8_t*) rep, sizeof(MediaKeyReport));
+	Serial.print("Sending Single Media Key: 0x");
+	Serial.println(key, HEX);
+	
+	_mediaKeyReport.consumer1 = key;
+	_mediaKeyReport.consumer2 = 0;
+	_mediaKeyReport.padding = 0;
+	
+	this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyReport, sizeof(MediaKeyReport));
 	this->inputMediaKeys->notify();
   }	
 }
 
+void BleRemoteControl::sendMediaReport(uint16_t key1, uint16_t key2)
+{
+  if (this->isConnected())
+  {
+	Serial.print("Sending Dual Media Keys: 0x");
+	Serial.print(key1, HEX);
+	Serial.print(", 0x");
+	Serial.println(key2, HEX);
+	
+	_mediaKeyReport.consumer1 = key1;
+	_mediaKeyReport.consumer2 = key2;
+	_mediaKeyReport.padding = 0;
+	
+	this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyReport, sizeof(MediaKeyReport));
+	this->inputMediaKeys->notify();
+  }	
+}
 
 // press() adds the specified key (printing, non-printing, or modifier)
 // to the persistent key report and sends the report.  Because of the way
@@ -324,12 +449,10 @@ size_t BleRemoteControl::press(uint8_t k)
 
 size_t BleRemoteControl::press(const MediaKeyReport k)
 {
-    uint16_t k_16 = k[1] | (k[0] << 8);
-    uint16_t mediaKeyReport_16 = _mediaKeyReport[1] | (_mediaKeyReport[0] << 8);
-
-    mediaKeyReport_16 |= k_16;
-    _mediaKeyReport[0] = (uint8_t)((mediaKeyReport_16 & 0xFF00) >> 8);
-    _mediaKeyReport[1] = (uint8_t)(mediaKeyReport_16 & 0x00FF);
+    // Set the media key report values
+    _mediaKeyReport.consumer1 |= k.consumer1;
+    _mediaKeyReport.consumer2 |= k.consumer2;
+    _mediaKeyReport.padding = 0;  // Always 0 for padding
 
 	sendMediaReport(&_mediaKeyReport);
 	return 1;
@@ -371,16 +494,14 @@ size_t BleRemoteControl::release(uint8_t k)
 
 size_t BleRemoteControl::release(const MediaKeyReport k)
 {
-    uint16_t k_16 = k[1] | (k[0] << 8);
-    uint16_t mediaKeyReport_16 = _mediaKeyReport[1] | (_mediaKeyReport[0] << 8);
-    mediaKeyReport_16 &= ~k_16;
-    _mediaKeyReport[0] = (uint8_t)((mediaKeyReport_16 & 0xFF00) >> 8);
-    _mediaKeyReport[1] = (uint8_t)(mediaKeyReport_16 & 0x00FF);
+    // Clear the specified media keys
+    _mediaKeyReport.consumer1 &= ~k.consumer1;
+    _mediaKeyReport.consumer2 &= ~k.consumer2;
+    _mediaKeyReport.padding = 0;  // Always 0 for padding
 
 	sendMediaReport(&_mediaKeyReport);
 	return 1;
 }
-
 
 void BleRemoteControl::onConnect(BLEServer* pServer) {
   this->connected = true;
@@ -416,7 +537,6 @@ void BleRemoteControl::delay_ms(uint64_t ms) {
   }
 }
 
-
 bool BleRemoteControl::isMediaKey(String key) {
 	key.toLowerCase();
 	for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
@@ -427,7 +547,7 @@ bool BleRemoteControl::isMediaKey(String key) {
 	return false;
 }
 
-  uint16_t BleRemoteControl::getMediaKeyCode(String key) {
+uint16_t BleRemoteControl::getMediaKeyCode(String key) {
 	key.toLowerCase();
 	
 	for (int i = 0; i < NUM_MEDIA_KEY_MAPPINGS; i++) {
@@ -449,4 +569,3 @@ uint8_t BleRemoteControl::getKeyCode(String key) {
 	
 	return 0; // Not found
 }
-

@@ -220,7 +220,15 @@ void processCommand(String command) {
     cmdSetBatteryLevel(parameter);
   } else if (baseCommand == "ble-status") {
     cmdShowBleStatus();
-  } else {
+  } else if (baseCommand == "seq") {
+    cmdSendSequence(parameter);
+  } else if (baseCommand == "hex") {
+    cmdSendHex(parameter);
+  } else if (baseCommand == "hex1") {
+    cmdSendHex1(parameter);
+  } else if (baseCommand == "hex2") {
+    cmdSendHex2(parameter);
+    } else {
     Serial.print(ERR_PREFIX);
     Serial.print(" ");
     Serial.print(ERR_UNKNOWN_COMMAND);
@@ -362,6 +370,112 @@ void cmdUnpair() {
     Serial.print(" ");
     Serial.println(ERR_COMMAND_FAILED);
     Serial.println("Failed to remove pairing information");
+  }
+}
+
+void cmdSendHex(String parameter)
+{
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing key parameter. Usage: hex <hex> <hex>");
+    return;
+  }
+
+    int firstSpace = parameter.indexOf(' ');
+  if (firstSpace == -1) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing parameters. Usage: hex <hex> <hex>");
+    return;
+  }
+  
+  String startHexStr = parameter.substring(0, firstSpace);
+  String endHexStr = parameter.substring(firstSpace + 1);
+  startHexStr.trim();
+  endHexStr.trim();
+  
+  // Convert hex strings to integers
+  unsigned long startValue = 0;
+  unsigned long endValue = 0;
+  // Parse start value
+  if (startHexStr.startsWith("0x") || startHexStr.startsWith("0X")) {
+    startValue = strtoul(startHexStr.c_str(), NULL, 16);
+  } else {
+    startValue = strtoul(startHexStr.c_str(), NULL, 16);
+  }
+  
+  // Parse end value
+  if (endHexStr.startsWith("0x") || endHexStr.startsWith("0X")) {
+    endValue = strtoul(endHexStr.c_str(), NULL, 16);
+  } else {
+    endValue = strtoul(endHexStr.c_str(), NULL, 16);
+  }
+
+  if(bleRemoteControl.sendMediaKey(startValue, endValue, 100)) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.print("Key pressed and released: ");
+    Serial.println(parameter);
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_KEY_NOT_FOUND);
+    Serial.print("Failed to process key: ");
+    Serial.println(parameter);
+  }
+}
+
+void cmdSendHex1(String parameter)
+{
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing key parameter. Usage: hex <hex>");
+    return;
+  }
+
+  if(bleRemoteControl.sendMediaKeyHex(parameter, 1, 100)) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.print("Key pressed and released: ");
+    Serial.println(parameter);
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_KEY_NOT_FOUND);
+    Serial.print("Failed to process key: ");
+    Serial.println(parameter);
+  }
+}
+
+void cmdSendHex2(String parameter)
+{
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing key parameter. Usage: hex2 <hex>");
+    return;
+  }
+
+  if(bleRemoteControl.sendMediaKeyHex(parameter, 2, 100)) {
+    Serial.print(STATUS_PREFIX);
+    Serial.print(" ");
+    Serial.println(STATUS_OK);
+    Serial.print("Key pressed and released: ");
+    Serial.println(parameter);
+  } else {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_KEY_NOT_FOUND);
+    Serial.print("Failed to process key: ");
+    Serial.println(parameter);
   }
 }
 
@@ -540,6 +654,175 @@ void cmdShowBleStatus() {
   Serial.print(bleRemoteControl.getBatteryLevel());
   Serial.println("%");
 }
+
+// Command to send a sequence of hex values as keys
+void cmdSendSequence(String parameter) {
+  if (parameter.isEmpty()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing parameters. Usage: seq <start_hex> <end_hex> <delay_ms>");
+    Serial.println("Example: seq 0x20 0x7E 100");
+    return;
+  }
+  
+  if (!bleRemoteControl.isConnected()) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_NOT_CONNECTED);
+    Serial.println("Not connected to a host device");
+    return;
+  }
+  
+  // Parse parameters: start_hex end_hex delay_ms
+  int firstSpace = parameter.indexOf(' ');
+  if (firstSpace == -1) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing parameters. Usage: seq <start_hex> <end_hex> <delay_ms>");
+    return;
+  }
+  
+  String startHexStr = parameter.substring(0, firstSpace);
+  String remaining = parameter.substring(firstSpace + 1);
+  remaining.trim();
+  
+  int secondSpace = remaining.indexOf(' ');
+  if (secondSpace == -1) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Missing delay parameter. Usage: seq <start_hex> <end_hex> <delay_ms>");
+    return;
+  }
+  
+  String endHexStr = remaining.substring(0, secondSpace);
+  String delayStr = remaining.substring(secondSpace + 1);
+  delayStr.trim();
+  
+  // Convert hex strings to integers
+  unsigned long startValue = 0;
+  unsigned long endValue = 0;
+  int delayMs = 0;
+  
+  // Parse start value
+  if (startHexStr.startsWith("0x") || startHexStr.startsWith("0X")) {
+    startValue = strtoul(startHexStr.c_str(), NULL, 16);
+  } else {
+    startValue = strtoul(startHexStr.c_str(), NULL, 16);
+  }
+  
+  // Parse end value
+  if (endHexStr.startsWith("0x") || endHexStr.startsWith("0X")) {
+    endValue = strtoul(endHexStr.c_str(), NULL, 16);
+  } else {
+    endValue = strtoul(endHexStr.c_str(), NULL, 16);
+  }
+  
+  // Parse delay
+  delayMs = delayStr.toInt();
+  
+  // Validate parameters
+  if (delayMs <= 100) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Invalid delay. Must be greater than 100");
+    return;
+  }
+  
+  if (startValue >= endValue) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Start value must be less than end value");
+    return;
+  }
+  
+  // Check if values are within 8-bit or 16-bit range
+  if (endValue > 0xFFFF) {
+    Serial.print(ERR_PREFIX);
+    Serial.print(" ");
+    Serial.println(ERR_INVALID_PARAMETER);
+    Serial.println("Values must be within 16-bit range (0x0000-0xFFFF)");
+    return;
+  }
+  
+  // Execute sequence
+  Serial.print(STATUS_PREFIX);
+  Serial.print(" ");
+  Serial.println("Starting key sequence...");
+  Serial.print("Range: 0x");
+  Serial.print(startValue, HEX);
+  Serial.print(" to 0x");
+  Serial.print(endValue, HEX);
+  Serial.print(", Delay: ");
+  Serial.print(delayMs);
+  Serial.println("ms");
+  
+  unsigned long totalKeys = endValue - startValue + 1;
+  unsigned long sentKeys = 0;
+  
+  for (unsigned long value = startValue; value <= endValue; value++) {
+    // Create hex string with 0x prefix
+    String hexKey = "0x";
+    if (value <= 0xFF) {
+      // 8-bit value - pad to 2 digits
+      if (value < 0x10) {
+        hexKey += "0";
+      }
+      hexKey += String(value, HEX);
+    } else {
+      // 16-bit value - pad to 4 digits
+      if (value < 0x1000) {
+        hexKey += "0";
+      }
+      if (value < 0x100) {
+        hexKey += "0";
+      }
+      if (value < 0x10) {
+        hexKey += "0";
+      }
+      hexKey += String(value, HEX);
+    }
+    
+    //hexKey.toUpperCase();
+    Serial.print("Key: ");
+    Serial.println(hexKey);
+    // Send the key
+    if (bleRemoteControl.sendMediaKeyHex(hexKey, 1, 100)) { // Use short internal delay for key press
+      sentKeys++;
+      
+      // Progress reporting every 10% or every 100 keys, whichever is less frequent
+      unsigned long progressInterval = max(1UL, min(100UL, totalKeys / 10));
+      if (sentKeys % progressInterval == 0 || sentKeys == totalKeys) {
+        Serial.print("Progress: ");
+        Serial.print(sentKeys);
+        Serial.print("/");
+        Serial.print(totalKeys);
+        Serial.print(" (");
+        Serial.print((sentKeys * 100) / totalKeys);
+        Serial.println("%)");
+      }
+    } else {
+      Serial.print("Warning: Failed to send key ");
+      Serial.println(hexKey);
+    }
+    
+    // Wait specified delay between keys
+    delay(delayMs);
+  }
+  
+  Serial.print(STATUS_PREFIX);
+  Serial.print(" ");
+  Serial.println(STATUS_OK);
+  Serial.print("Sequence completed. Sent ");
+  Serial.print(sentKeys);
+  Serial.print(" of ");
+  Serial.print(totalKeys);
+  Serial.println(" keys");
+}
 #pragma endregion
 
 // Update the help command to include BLE commands
@@ -566,12 +849,16 @@ void printHelp() {
   Serial.println("releaseall            - Release all currently pressed keys");
   Serial.println("battery <level>       - Set the reported battery level (0-100)");
   Serial.println("ble-status            - Show current BLE connection status");
+  Serial.println("seq <start> <end> <delay> - Send sequence of hex values as keys");
+  Serial.println("                        Example: seq 0x20 0x7E 100");
+  Serial.println("hex <hexcode>         - Send hex key for custom controls");
   
   Serial.println("\n--- System Commands ---");
   Serial.println("reboot                - Restarts the device");
   Serial.println("diag                  - Shows diagnostic information");
   
   Serial.println("\nNote: Commands are case-insensitive.");
+  Serial.println("Hex values can be 8-bit (0x00-0xFF) or 16-bit (0x0000-0xFFFF)");
   Serial.println("=========================================");
 }
 
