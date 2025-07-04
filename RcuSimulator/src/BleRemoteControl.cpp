@@ -452,7 +452,7 @@ size_t BleRemoteControl::press(const MediaKeyReport k)
     // Set the media key report values
     _mediaKeyReport.consumer1 |= k.consumer1;
     _mediaKeyReport.consumer2 |= k.consumer2;
-    _mediaKeyReport.padding = 0;  // Always 0 for padding
+    _mediaKeyReport.padding = 0xff;  // Always 0 for padding
 
 	sendMediaReport(&_mediaKeyReport);
 	return 1;

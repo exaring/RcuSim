@@ -145,6 +145,7 @@ static const uint8_t _hidReportDescriptor[] = {
 #define KEY_MEDIA_FAST_FORWARD  0x00002000 // 00 20 00 - Consumer Control Fast Forward
 #define KEY_MEDIA_NEXT          0x00004000 // 00 40 00 - Consumer Control Next
 #define KEY_MEDIA_PREVIOUS      0x00008000 // 00 80 00 - Consumer Control Previous
+
 #define KEY_MEDIA_PLAY_PAUSE    0x00010000 // 01 00 00 - Consumer Control Play/Pause
 #define KEY_MEDIA_MUTE          0x00020000 // 02 00 00 - Consumer Control Mute
 #define KEY_MEDIA_VOLUME_UP     0x00040000 // 04 00 00 - Consumer Control Volume Up

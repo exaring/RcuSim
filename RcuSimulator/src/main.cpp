@@ -6,7 +6,7 @@
 #include "wifimanager.h"
 #include "BleRemoteControl.h"
 #include "main.h"
-
+#include "utils.h"
 
 BleRemoteControl bleRemoteControl(BLE_DEVICE_NAME, BLE_MANUFACTURER_NAME, BLE_INITIAL_BATTERY_LEVEL);
 
@@ -73,6 +73,43 @@ unsigned long bootCount = 0;
 // Status update interval for display refresh
 unsigned long lastStatusUpdate = 0;
 const unsigned long STATUS_UPDATE_INTERVAL = 2000; // Update every 2 seconds
+
+// Command mapping table with help texts
+const CommandHandler commandHandlers[] = {
+  // WiFi Configuration
+  {"setssid",     cmdSetSSID,           true,  "setssid <ssid>               - Set the SSID of the WiFi network",                    "WiFi Configuration"},
+  {"setpwd",      cmdSetPwd,            true,  "setpwd <password>            - Set the password of the WiFi network",               "WiFi Configuration"},
+  {"setip",       cmdSetIP,             true,  "setip <ip>                   - Set the static IP address (format: xxx.xxx.xxx.xxx)", "WiFi Configuration"},
+  {"setgateway",  cmdSetGateway,        true,  "setgateway <ip>              - Set the gateway address (format: xxx.xxx.xxx.xxx)",  "WiFi Configuration"},
+  {"save",        cmdSaveConfig,        false, "save                         - Save the current WiFi configuration to NVM",          "WiFi Configuration"},
+  {"connect",     cmdConnectWiFi,       false, "connect                      - Connect to the WiFi network with the current config", "WiFi Configuration"},
+  {"config",      cmdShowConfig,        false, "config                       - Shows the current WiFi configuration",               "WiFi Configuration"},
+  
+  // BLE Remote Control
+  {"pair",        cmdStartPairing,      false, "pair                         - Start BLE advertising for pairing",                   "BLE Remote Control"},
+  {"ble-pair",    cmdStartPairing,      false, "ble-pair                     - Start BLE advertising for pairing",                   "BLE Remote Control"},
+  {"stoppair",    cmdStopPairing,       false, "stoppair                     - Stop BLE advertising",                                "BLE Remote Control"},
+  {"ble-stoppair", cmdStopPairing,      false, "ble-stoppair                 - Stop BLE advertising",                                "BLE Remote Control"},
+  {"unpair",      cmdUnpair,            false, "unpair                       - Remove all stored BLE pairings",                      "BLE Remote Control"},
+  {"ble-unpair",  cmdUnpair,            false, "ble-unpair                   - Remove all stored BLE pairings",                      "BLE Remote Control"},
+  {"key",         cmdSendKey,           true,  "key <keyname> [delay]        - Press and release a key with optional delay (ms)",   "BLE Remote Control"},
+  {"press",       cmdPressKey,          true,  "press <keyname>              - Press a key without releasing",                       "BLE Remote Control"},
+  {"release",     cmdReleaseKey,        true,  "release <keyname>            - Release a previously pressed key",                    "BLE Remote Control"},
+  {"releaseall",  cmdReleaseAllKeys,    false, "releaseall                   - Release all currently pressed keys",                  "BLE Remote Control"},
+  {"battery",     cmdSetBatteryLevel,   true,  "battery <level>              - Set the reported battery level (0-100)",             "BLE Remote Control"},
+  {"ble-status",  cmdShowBleStatus,     false, "ble-status                   - Show current BLE connection status",                  "BLE Remote Control"},
+  {"seq",         cmdSendSequence,      true,  "seq <start> <end> <delay>    - Send sequence of hex values as keys",                "BLE Remote Control"},
+  {"hex",         cmdSendHex,           true,  "hex <hex1> <hex2> [delay]    - Send hex key pair for custom controls",              "BLE Remote Control"},
+  {"hex1",        cmdSendHex1,          true,  "hex1 <hex> [delay]           - Send 1-byte hex key",                                 "BLE Remote Control"},
+  {"hex2",        cmdSendHex2,          true,  "hex2 <hex> [delay]           - Send 2-byte hex key",                                 "BLE Remote Control"},
+  
+  // System Commands
+  {"help",        printHelp,            false, "help                         - Shows this help",                                      "System Commands"},
+  {"reboot",      cmdReboot,            false, "reboot                       - Restarts the device",                                 "System Commands"},
+  {"diag",        cmdDiag,              false, "diag                         - Shows diagnostic information",                        "System Commands"},
+  
+  {nullptr,       nullptr,              false, nullptr,                                                                               nullptr} // End marker
+};
 
 // The main setup routine executed once at bootup
 void setup() {
@@ -164,151 +201,109 @@ void updateBootCounter() {
   preferences.putULong("bootCount", bootCount);
 }
 
+// Simplified processCommand function using command handler table
 void processCommand(String command) {
-  // Split command into parts (base command and parameter)
-  int spaceIndex = command.indexOf(' ');
-  String baseCommand;
-  String parameter = "";
+  ParsedCommand parsed = parseCommand(command);
   
-  if (spaceIndex != -1) {
-    baseCommand = command.substring(0, spaceIndex);
-    parameter = command.substring(spaceIndex + 1);
-    parameter.trim();
-  } else {
-    baseCommand = command;
+  // Find command handler
+  for (const CommandHandler* handler = commandHandlers; handler->command != nullptr; handler++) {
+    if (parsed.baseCommand.equalsIgnoreCase(handler->command)) {
+      if (handler->needsParameter && parsed.firstParam.isEmpty()) {
+        printParameterError("Command '" + parsed.baseCommand + "' requires a parameter");
+        return;
+      }
+      handler->handler(parsed.firstParam);
+      return;
+    }
   }
   
-  baseCommand.toLowerCase();
-  
-  if (baseCommand == "help") {
-    printHelp();
-  } else if (baseCommand == "setssid") {
-    cmdSetSSID(parameter);
-  } else if (baseCommand == "setpwd") {
-    cmdSetPwd(parameter);
-  } else if (baseCommand == "setip") {
-    cmdSetIP(parameter);
-  } else if (baseCommand == "setgateway") {
-    cmdSetGateway(parameter);
-  } else if (baseCommand == "save") {
-    cmdSaveConfig();
-  } else if (baseCommand == "connect") {
-    cmdConnectWiFi();
-  } else if (baseCommand == "config") {
-    cmdShowConfig();
-  } else if (baseCommand == "reboot") {
-    cmdReboot();
-  } else if (baseCommand == "diag") {
-    cmdDiag();
-  } 
-  // BLE Remote Control Commands
-  else if (baseCommand == "pair" || baseCommand == "ble-pair") {
-    cmdStartPairing();
-  } else if (baseCommand == "stoppair" || baseCommand == "ble-stoppair") {
-    cmdStopPairing();
-  } else if (baseCommand == "unpair" || baseCommand == "ble-unpair") {
-    cmdUnpair();
-  } else if (baseCommand == "key") {
-    cmdSendKey(parameter);
-  } else if (baseCommand == "press") {
-    cmdPressKey(parameter);
-  } else if (baseCommand == "release") {
-    cmdReleaseKey(parameter);
-  } else if (baseCommand == "releaseall") {
-    cmdReleaseAllKeys();
-  } else if (baseCommand == "battery") {
-    cmdSetBatteryLevel(parameter);
-  } else if (baseCommand == "ble-status") {
-    cmdShowBleStatus();
-  } else if (baseCommand == "seq") {
-    cmdSendSequence(parameter);
-  } else if (baseCommand == "hex") {
-    cmdSendHex(parameter);
-  } else if (baseCommand == "hex1") {
-    cmdSendHex1(parameter);
-  } else if (baseCommand == "hex2") {
-    cmdSendHex2(parameter);
-    } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.print(ERR_UNKNOWN_COMMAND);
-    Serial.println(" Unknown command: " + command);
+  printUnknownCommandError(command);
+}
+
+// Generic function for hex commands
+bool executeHexCommand(unsigned long param1, unsigned long param2, int delay, const String& commandName) {
+  if (bleRemoteControl.sendMediaKey(param1, param2, delay)) {
+    printSuccessMessage(commandName + " executed successfully (delay: " + String(delay) + "ms)");
+    return true;
+  } else {
+    printErrorMessage("Failed to execute " + commandName);
+    return false;
   }
 }
 
-#pragma region WiFiManager Commands
+#pragma region WiFi Commands
 void cmdSetSSID(String ssid) {
-  if (ssid.length() > 0) {
-    Serial.print("Set SSID to: ");
-    Serial.println(ssid);
-    wifiManager.setSSID(ssid);
-  } else {
-    Serial.println("Invalid SSID");
-  }
+  if (!validateNonEmpty(ssid, "Invalid SSID")) return;
+  
+  Serial.print("Set SSID to: ");
+  Serial.println(ssid);
+  wifiManager.setSSID(ssid);
 }
 
 void cmdSetPwd(String password) {
-  if (password.length() > 0) {
-    Serial.print("Set Password to: ");
-    Serial.println(password);
-    wifiManager.setPassword(password);
-  } else {
-    Serial.println("Invalid Password");
-  }
+  if (!validateNonEmpty(password, "Invalid Password")) return;
+  
+  Serial.print("Set Password to: ");
+  Serial.println(password);
+  wifiManager.setPassword(password);
 }
 
 void cmdSetIP(String ip) {
-  if (wifiManager.isValidIPAddress(ip)) {
-    Serial.print("Set IP to: ");
-    Serial.println(ip);
-    wifiManager.setStaticIP(IPAddress().fromString(ip));
-  } else {
-    Serial.println("Invalid IP address");
+  if (!validateNonEmpty(ip, "Missing IP address") ||
+      !wifiManager.isValidIPAddress(ip)) {
+    printParameterError("Invalid IP address");
+    return;
   }
+  
+  Serial.print("Set IP to: ");
+  Serial.println(ip);
+  wifiManager.setStaticIP(IPAddress().fromString(ip));
 }
 
 void cmdSetGateway(String gateway) {
-  if (wifiManager.isValidIPAddress(gateway)) {
-    Serial.print("Set Gateway to: ");
-    Serial.println(gateway);
-    wifiManager.setGateway(IPAddress().fromString(gateway));
-  } else {
-    Serial.println("Invalid Gateway address");
+  if (!validateNonEmpty(gateway, "Missing Gateway address") ||
+      !wifiManager.isValidIPAddress(gateway)) {
+    printParameterError("Invalid Gateway address");
+    return;
   }
+  
+  Serial.print("Set Gateway to: ");
+  Serial.println(gateway);
+  wifiManager.setGateway(IPAddress().fromString(gateway));
 }
 
-void cmdSaveConfig() {
+void cmdSaveConfig(String parameter) {
   if (wifiManager.hasUnsavedChanges()) {
     wifiManager.saveConfig();
-    Serial.println("Configuration saved!");
+    printSuccessMessage("Configuration saved!");
   } else {
     Serial.println("No changes to save.");
   }
 }
 
-void cmdConnectWiFi() {
+void cmdConnectWiFi(String parameter) {
   Serial.println("Trying to establish WiFi connection...");
   wifiManager.setup();
+  
   if (wifiManager.isConnected()) {
-    Serial.println("Connected to WiFi!");
+    printSuccessMessage("Connected to WiFi!");
     setupWebServer();
   } else {
-    Serial.println("Failed to connect to WiFi.");
+    printErrorMessage("Failed to connect to WiFi.");
   }
 }
-#pragma endregion
 
-void cmdReboot() {
+void cmdShowConfig(String parameter) {
+  wifiManager.printConfig();
+}
+
+void cmdReboot(String parameter) {
   Serial.println("ESP32 is restarting...");
   delay(1000);
   ESP.restart();
 }
 
-void cmdShowConfig() {
-  wifiManager.printConfig();
-} 
-
-void cmdDiag() {
+void cmdDiag(String parameter) {
   Serial.println("Diagnostic information:");
   Serial.print("  Boot counter: ");
   Serial.println(bootCount);
@@ -322,325 +317,141 @@ void cmdDiag() {
     Serial.println(wifiManager.localIp());
   }
 }
+#pragma endregion
 
 #pragma region BLE Commands
-// Command to start BLE advertising/pairing mode
-void cmdStartPairing() {
+void cmdStartPairing(String parameter) {
   if (isBleAdvertising) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_ALREADY_ADVERTISING);
+    printGenericError(1001, "BLE is already advertising");
     return;
   }
   
   bleRemoteControl.startAdvertising();
   isBleAdvertising = true;
-  Serial.print(STATUS_PREFIX);
-  Serial.print(" ");
-  Serial.print(STATUS_ADVERTISING);
-  Serial.println(" BLE advertising started for pairing");
+  printStatusMessage(200, "BLE advertising started for pairing");
 }
 
-// Command to stop BLE advertising/pairing mode
-void cmdStopPairing() {
+void cmdStopPairing(String parameter) {
   if (!isBleAdvertising) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_NOT_ADVERTISING);
+    printGenericError(1002, "BLE is not advertising");
     return;
   }
   
   bleRemoteControl.stopAdvertising();
   isBleAdvertising = false;
-  Serial.print(STATUS_PREFIX);
-  Serial.print(" ");
-  Serial.println(STATUS_OK);
-  Serial.println("BLE advertising stopped");
+  printStatusMessage(200, "BLE advertising stopped");
 }
 
-// Command to remove all stored pairings
-void cmdUnpair() {
+void cmdUnpair(String parameter) {
   if (bleRemoteControl.removeBonding()) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.println("Pairing information removed successfully");
+    printSuccessMessage("Pairing information removed successfully");
   } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_COMMAND_FAILED);
-    Serial.println("Failed to remove pairing information");
+    printGenericError(1003, "Failed to remove pairing information");
   }
 }
 
-void cmdSendHex(String parameter)
-{
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing key parameter. Usage: hex <hex> <hex>");
-    return;
-  }
-
-    int firstSpace = parameter.indexOf(' ');
-  if (firstSpace == -1) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing parameters. Usage: hex <hex> <hex>");
+void cmdSendHex(String parameter) {
+  ParsedCommand parsed = parseTwoHexCommand(parameter);
+  if (parsed.baseCommand.isEmpty()) {
+    printParameterError("Missing parameters. Usage: hex <hex1> <hex2> [delay_ms]");
     return;
   }
   
-  String startHexStr = parameter.substring(0, firstSpace);
-  String endHexStr = parameter.substring(firstSpace + 1);
-  startHexStr.trim();
-  endHexStr.trim();
-  
-  // Convert hex strings to integers
-  unsigned long startValue = 0;
-  unsigned long endValue = 0;
-  // Parse start value
-  if (startHexStr.startsWith("0x") || startHexStr.startsWith("0X")) {
-    startValue = strtoul(startHexStr.c_str(), NULL, 16);
-  } else {
-    startValue = strtoul(startHexStr.c_str(), NULL, 16);
-  }
-  
-  // Parse end value
-  if (endHexStr.startsWith("0x") || endHexStr.startsWith("0X")) {
-    endValue = strtoul(endHexStr.c_str(), NULL, 16);
-  } else {
-    endValue = strtoul(endHexStr.c_str(), NULL, 16);
-  }
-
-  if(bleRemoteControl.sendMediaKey(startValue, endValue, 100)) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.print("Key pressed and released: ");
-    Serial.println(parameter);
-  } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_KEY_NOT_FOUND);
-    Serial.print("Failed to process key: ");
-    Serial.println(parameter);
-  }
-}
-
-void cmdSendHex1(String parameter)
-{
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing key parameter. Usage: hex <hex>");
+  unsigned long startValue, endValue;
+  if (!validateHexAndParse(parsed.firstParam, startValue, "Invalid start hex value") ||
+      !validateHexAndParse(parsed.secondParam, endValue, "Invalid end hex value")) {
     return;
   }
-
-  if(bleRemoteControl.sendMediaKeyHex(parameter, 1, 100)) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.print("Key pressed and released: ");
-    Serial.println(parameter);
-  } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_KEY_NOT_FOUND);
-    Serial.print("Failed to process key: ");
-    Serial.println(parameter);
-  }
+  
+  executeHexCommand(startValue, endValue, parsed.delayMs, "hex");
 }
 
-void cmdSendHex2(String parameter)
-{
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing key parameter. Usage: hex2 <hex>");
+void cmdSendHex1(String parameter) {
+  ParsedCommand parsed = parseHexCommand(parameter);
+  if (parsed.baseCommand.isEmpty()) {
+    printParameterError("Missing parameter. Usage: hex1 <hex> [delay_ms]");
     return;
   }
-
-  if(bleRemoteControl.sendMediaKeyHex(parameter, 2, 100)) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.print("Key pressed and released: ");
-    Serial.println(parameter);
-  } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_KEY_NOT_FOUND);
-    Serial.print("Failed to process key: ");
-    Serial.println(parameter);
+  
+  unsigned long keyCode;
+  if (!validateHexAndParse(parsed.firstParam, keyCode, "Invalid hex value")) {
+    return;
   }
+  
+  executeHexCommand(keyCode, 0, parsed.delayMs, "hex1");
 }
 
-// Command to press and release a key
+void cmdSendHex2(String parameter) {
+  ParsedCommand parsed = parseHexCommand(parameter);
+  if (parsed.baseCommand.isEmpty()) {
+    printParameterError("Missing parameter. Usage: hex2 <hex> [delay_ms]");
+    return;
+  }
+  
+  unsigned long keyCode;
+  if (!validateHexAndParse(parsed.firstParam, keyCode, "Invalid hex value")) {
+    return;
+  }
+  
+  executeHexCommand(0, keyCode, parsed.delayMs, "hex2");
+}
+
 void cmdSendKey(String parameter) {
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing key parameter. Usage: key <keyname> [delay_ms]");
+  ParsedCommand parsed = parseKeyCommand(parameter);
+  if (parsed.baseCommand.isEmpty()) {
+    printParameterError("Missing parameter. Usage: key <keyname> [delay_ms]");
     return;
   }
   
-  // Parse parameter for key and optional delay
-  String keyName;
-  int delayMs = 100; // Default delay
+  if (!checkBleConnection()) return;
   
-  int spaceIndex = parameter.indexOf(' ');
-  if (spaceIndex != -1) {
-    keyName = parameter.substring(0, spaceIndex);
-    String delayStr = parameter.substring(spaceIndex + 1);
-    delayStr.trim();
-    delayMs = delayStr.toInt();
+  if (bleRemoteControl.sendKey(parsed.firstParam, parsed.delayMs)) {
+    printSuccessMessage("Key '" + parsed.firstParam + "' executed (delay: " + String(parsed.delayMs) + "ms)");
   } else {
-    keyName = parameter;
-  }
-  
-  if (!bleRemoteControl.isConnected()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_NOT_CONNECTED);
-    Serial.println("Not connected to a host device");
-    return;
-  }
-  
-  if (bleRemoteControl.sendKey(keyName, delayMs)) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.print("Key pressed and released: ");
-    Serial.print(keyName);
-    Serial.print(" (delay: ");
-    Serial.print(delayMs);
-    Serial.println("ms)");
-  } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_KEY_NOT_FOUND);
-    Serial.print("Failed to process key: ");
-    Serial.println(keyName);
+    printErrorMessage("Failed to process key: " + parsed.firstParam);
   }
 }
 
-// Command to press a key (without releasing)
 void cmdPressKey(String parameter) {
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing key parameter. Usage: press <keyname>");
-    return;
-  }
-  
-  if (!bleRemoteControl.isConnected()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_NOT_CONNECTED);
-    Serial.println("Not connected to a host device");
-    return;
-  }
+  if (!validateNonEmpty(parameter, "Missing key parameter. Usage: press <keyname>") ||
+      !checkBleConnection()) return;
   
   if (bleRemoteControl.sendPress(parameter)) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.print("Key pressed: ");
-    Serial.println(parameter);
+    printSuccessMessage("Key pressed: " + parameter);
   } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_KEY_NOT_FOUND);
-    Serial.print("Failed to press key: ");
-    Serial.println(parameter);
+    printErrorMessage("Failed to press key: " + parameter);
   }
 }
 
-// Command to release a previously pressed key
 void cmdReleaseKey(String parameter) {
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing key parameter. Usage: release <keyname>");
-    return;
-  }
-  
-  if (!bleRemoteControl.isConnected()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_NOT_CONNECTED);
-    Serial.println("Not connected to a host device");
-    return;
-  }
+  if (!validateNonEmpty(parameter, "Missing key parameter. Usage: release <keyname>") ||
+      !checkBleConnection()) return;
   
   if (bleRemoteControl.sendRelease(parameter)) {
-    Serial.print(STATUS_PREFIX);
-    Serial.print(" ");
-    Serial.println(STATUS_OK);
-    Serial.print("Key released: ");
-    Serial.println(parameter);
+    printSuccessMessage("Key released: " + parameter);
   } else {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_KEY_NOT_FOUND);
-    Serial.print("Failed to release key: ");
-    Serial.println(parameter);
+    printErrorMessage("Failed to release key: " + parameter);
   }
 }
 
-// Command to release all currently pressed keys
-void cmdReleaseAllKeys() {
-  if (!bleRemoteControl.isConnected()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_NOT_CONNECTED);
-    Serial.println("Not connected to a host device");
-    return;
-  }
+void cmdReleaseAllKeys(String parameter) {
+  if (!checkBleConnection()) return;
   
   bleRemoteControl.releaseAll();
-  Serial.print(STATUS_PREFIX);
-  Serial.print(" ");
-  Serial.println(STATUS_OK);
-  Serial.println("All keys released");
+  printSuccessMessage("All keys released");
 }
 
-// Command to set the reported battery level
 void cmdSetBatteryLevel(String parameter) {
-  if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing level parameter. Usage: battery <level>");
-    return;
-  }
+  if (!validateNonEmpty(parameter, "Missing level parameter. Usage: battery <level>")) return;
   
   int level = parameter.toInt();
-  if (level < 0 || level > 100) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Invalid battery level. Must be between 0 and 100");
-    return;
-  }
+  if (!validateRange(level, 0, 100, "Invalid battery level. Must be between 0 and 100")) return;
   
   bleRemoteControl.setBatteryLevel(level);
-  Serial.print(STATUS_PREFIX);
-  Serial.print(" ");
-  Serial.println(STATUS_OK);
-  Serial.print("Battery level set to ");
-  Serial.println(level);
+  printSuccessMessage("Battery level set to " + String(level) + "%");
 }
 
-// Command to show current BLE status
-void cmdShowBleStatus() {
+void cmdShowBleStatus(String parameter) {
   Serial.println("BLE Status:");
   Serial.print("  Device name: ");
   Serial.println(BLE_DEVICE_NAME);
@@ -655,32 +466,18 @@ void cmdShowBleStatus() {
   Serial.println("%");
 }
 
-// Command to send a sequence of hex values as keys
 void cmdSendSequence(String parameter) {
   if (parameter.isEmpty()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing parameters. Usage: seq <start_hex> <end_hex> <delay_ms>");
-    Serial.println("Example: seq 0x20 0x7E 100");
+    printParameterError("Missing parameters. Usage: seq <start_hex> <end_hex> <delay_ms>\nExample: seq 0x20 0x7E 100");
     return;
   }
   
-  if (!bleRemoteControl.isConnected()) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_NOT_CONNECTED);
-    Serial.println("Not connected to a host device");
-    return;
-  }
+  if (!checkBleConnection()) return;
   
   // Parse parameters: start_hex end_hex delay_ms
   int firstSpace = parameter.indexOf(' ');
   if (firstSpace == -1) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing parameters. Usage: seq <start_hex> <end_hex> <delay_ms>");
+    printParameterError("Missing parameters. Usage: seq <start_hex> <end_hex> <delay_ms>");
     return;
   }
   
@@ -690,10 +487,7 @@ void cmdSendSequence(String parameter) {
   
   int secondSpace = remaining.indexOf(' ');
   if (secondSpace == -1) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Missing delay parameter. Usage: seq <start_hex> <end_hex> <delay_ms>");
+    printParameterError("Missing delay parameter. Usage: seq <start_hex> <end_hex> <delay_ms>");
     return;
   }
   
@@ -701,51 +495,24 @@ void cmdSendSequence(String parameter) {
   String delayStr = remaining.substring(secondSpace + 1);
   delayStr.trim();
   
-  // Convert hex strings to integers
-  unsigned long startValue = 0;
-  unsigned long endValue = 0;
-  int delayMs = 0;
-  
-  // Parse start value
-  if (startHexStr.startsWith("0x") || startHexStr.startsWith("0X")) {
-    startValue = strtoul(startHexStr.c_str(), NULL, 16);
-  } else {
-    startValue = strtoul(startHexStr.c_str(), NULL, 16);
+  // Validate hex strings
+  unsigned long startValue, endValue;
+  if (!validateHexAndParse(startHexStr, startValue, "Invalid start hex format") ||
+      !validateHexAndParse(endHexStr, endValue, "Invalid end hex format")) {
+    return;
   }
   
-  // Parse end value
-  if (endHexStr.startsWith("0x") || endHexStr.startsWith("0X")) {
-    endValue = strtoul(endHexStr.c_str(), NULL, 16);
-  } else {
-    endValue = strtoul(endHexStr.c_str(), NULL, 16);
-  }
-  
-  // Parse delay
-  delayMs = delayStr.toInt();
+  int delayMs = delayStr.toInt();
   
   // Validate parameters
-  if (delayMs <= 100) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Invalid delay. Must be greater than 100");
+  if (!validateRange(delayMs, 101, 10000, "Invalid delay. Must be greater than 100") ||
+      startValue >= endValue) {
+    printParameterError("Start value must be less than end value");
     return;
   }
   
-  if (startValue >= endValue) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Start value must be less than end value");
-    return;
-  }
-  
-  // Check if values are within 8-bit or 16-bit range
   if (endValue > 0xFFFF) {
-    Serial.print(ERR_PREFIX);
-    Serial.print(" ");
-    Serial.println(ERR_INVALID_PARAMETER);
-    Serial.println("Values must be within 16-bit range (0x0000-0xFFFF)");
+    printParameterError("Values must be within 16-bit range (0x0000-0xFFFF)");
     return;
   }
   
@@ -753,10 +520,10 @@ void cmdSendSequence(String parameter) {
   Serial.print(STATUS_PREFIX);
   Serial.print(" ");
   Serial.println("Starting key sequence...");
-  Serial.print("Range: 0x");
-  Serial.print(startValue, HEX);
-  Serial.print(" to 0x");
-  Serial.print(endValue, HEX);
+  Serial.print("Range: ");
+  Serial.print(formatHex16((uint16_t)startValue));
+  Serial.print(" to ");
+  Serial.print(formatHex16((uint16_t)endValue));
   Serial.print(", Delay: ");
   Serial.print(delayMs);
   Serial.println("ms");
@@ -765,33 +532,14 @@ void cmdSendSequence(String parameter) {
   unsigned long sentKeys = 0;
   
   for (unsigned long value = startValue; value <= endValue; value++) {
-    // Create hex string with 0x prefix
-    String hexKey = "0x";
-    if (value <= 0xFF) {
-      // 8-bit value - pad to 2 digits
-      if (value < 0x10) {
-        hexKey += "0";
-      }
-      hexKey += String(value, HEX);
-    } else {
-      // 16-bit value - pad to 4 digits
-      if (value < 0x1000) {
-        hexKey += "0";
-      }
-      if (value < 0x100) {
-        hexKey += "0";
-      }
-      if (value < 0x10) {
-        hexKey += "0";
-      }
-      hexKey += String(value, HEX);
-    }
+    // Create hex string with 0x prefix using utility function
+    String hexKey = formatHex16((uint16_t)value);
     
-    //hexKey.toUpperCase();
     Serial.print("Key: ");
     Serial.println(hexKey);
+    
     // Send the key
-    if (bleRemoteControl.sendMediaKeyHex(hexKey, 1, 100)) { // Use short internal delay for key press
+    if (bleRemoteControl.sendMediaKeyHex(hexKey, 1, 100)) {
       sentKeys++;
       
       // Progress reporting every 10% or every 100 keys, whichever is less frequent
@@ -814,58 +562,43 @@ void cmdSendSequence(String parameter) {
     delay(delayMs);
   }
   
-  Serial.print(STATUS_PREFIX);
-  Serial.print(" ");
-  Serial.println(STATUS_OK);
-  Serial.print("Sequence completed. Sent ");
-  Serial.print(sentKeys);
-  Serial.print(" of ");
-  Serial.print(totalKeys);
-  Serial.println(" keys");
+  printSuccessMessage("Sequence completed. Sent " + String(sentKeys) + " of " + String(totalKeys) + " keys");
 }
 #pragma endregion
 
-// Update the help command to include BLE commands
-void printHelp() {
+// Generate help text from command handler table
+void printHelp(String parameter) {
   Serial.println("\n=== BLE Remote Control Console Commands ===");
-  Serial.println("help                  - Shows this help");
   
-  Serial.println("\n--- WiFi Configuration ---");
-  Serial.println("setssid <ssid>        - Set the SSID of the WiFi network");
-  Serial.println("setpwd <password>     - Set the password of the WiFi network");
-  Serial.println("setip <ip>            - Set the static IP address (format: xxx.xxx.xxx.xxx)");
-  Serial.println("setgateway <ip>       - Set the gateway address (format: xxx.xxx.xxx.xxx)");
-  Serial.println("save                  - Save the current WiFi configuration to NVM");
-  Serial.println("connect               - Connect to the WiFi network with the current configuration");
-  Serial.println("config                - Shows the current WiFi configuration");
-  
-  Serial.println("\n--- BLE Remote Control ---");
-  Serial.println("pair                  - Start BLE advertising for pairing");
-  Serial.println("stoppair              - Stop BLE advertising");
-  Serial.println("unpair                - Remove all stored BLE pairings");
-  Serial.println("key <keyname> [delay] - Press and release a key with optional delay (ms)");
-  Serial.println("press <keyname>       - Press a key without releasing");
-  Serial.println("release <keyname>     - Release a previously pressed key");
-  Serial.println("releaseall            - Release all currently pressed keys");
-  Serial.println("battery <level>       - Set the reported battery level (0-100)");
-  Serial.println("ble-status            - Show current BLE connection status");
-  Serial.println("seq <start> <end> <delay> - Send sequence of hex values as keys");
-  Serial.println("                        Example: seq 0x20 0x7E 100");
-  Serial.println("hex <hexcode>         - Send hex key for custom controls");
-  
-  Serial.println("\n--- System Commands ---");
-  Serial.println("reboot                - Restarts the device");
-  Serial.println("diag                  - Shows diagnostic information");
+  String currentCategory = "";
+  for (const CommandHandler* handler = commandHandlers; handler->command != nullptr; handler++) {
+    // Skip duplicate commands (like ble-pair, ble-stoppair, etc.)
+    if (String(handler->command).startsWith("ble-") && 
+        String(handler->command) != "ble-status" && 
+        String(handler->command) != "ble-pair" && 
+        String(handler->command) != "ble-stoppair" && 
+        String(handler->command) != "ble-unpair") {
+      continue;
+    }
+    
+    // Print category header
+    if (currentCategory != String(handler->category)) {
+      currentCategory = String(handler->category);
+      Serial.println("\n--- " + currentCategory + " ---");
+    }
+    
+    // Print command help
+    Serial.println(handler->helpText);
+  }
   
   Serial.println("\nNote: Commands are case-insensitive.");
   Serial.println("Hex values can be 8-bit (0x00-0xFF) or 16-bit (0x0000-0xFFFF)");
+  Serial.println("Example: seq 0x20 0x7E 100");
   Serial.println("=========================================");
 }
 
 // BLE setup
 void setupBLE() {
-
-  
   // Initialize BLE functionality, but don't start yet
   bleRemoteControl.begin();
   

@@ -35,35 +35,51 @@ void updateDisplay();
 extern unsigned long lastStatusUpdate;
 extern const unsigned long STATUS_UPDATE_INTERVAL;
 
-// Function prototypes
+// Command handler structure
+struct CommandHandler {
+  const char* command;
+  void (*handler)(String);
+  bool needsParameter;
+  const char* helpText;
+  const char* category;
+};
+
+// Function prototypes - Core functions
 void setupSerial();
 void handleSerialCommands();
 void setupBLE();
 void processCommand(String command);
-void cmdSetSSID(String ssid);
-void cmdSetPwd(String password);
-void cmdSetIP(String ip);
-void cmdSetGateway(String gateway);
-void cmdSaveConfig();
-void cmdConnectWiFi();
-void cmdReboot();
-void cmdShowConfig();
-void cmdDiag();
-void printHelp();
 void updateBootCounter();
-void cmdStartPairing();
-void cmdStopPairing();
-void cmdUnpair();
-void cmdSendKey(String key);
-void cmdPressKey(String key);
-void cmdReleaseKey(String key);
-void cmdSendSequence(String key);
+bool executeHexCommand(unsigned long param1, unsigned long param2, int delay, const String& commandName);
+
+// Function prototypes - WiFi commands
+void cmdSetSSID(String parameter);
+void cmdSetPwd(String parameter);
+void cmdSetIP(String parameter);
+void cmdSetGateway(String parameter);
+void cmdSaveConfig(String parameter);
+void cmdConnectWiFi(String parameter);
+void cmdShowConfig(String parameter);
+
+// Function prototypes - BLE commands
+void cmdStartPairing(String parameter);
+void cmdStopPairing(String parameter);
+void cmdUnpair(String parameter);
+void cmdSendKey(String parameter);
+void cmdPressKey(String parameter);
+void cmdReleaseKey(String parameter);
+void cmdReleaseAllKeys(String parameter);
+void cmdSetBatteryLevel(String parameter);
+void cmdShowBleStatus(String parameter);
+void cmdSendSequence(String parameter);
 void cmdSendHex(String parameter);
 void cmdSendHex1(String parameter);
 void cmdSendHex2(String parameter);
-void cmdReleaseAllKeys();
-void cmdSetBatteryLevel(String key);
-void cmdShowBleStatus();
+
+// Function prototypes - System commands
+void cmdReboot(String parameter);
+void cmdDiag(String parameter);
+void printHelp(String parameter);
 
 #ifdef USE_DISPLAY
 #include <Wire.h>
