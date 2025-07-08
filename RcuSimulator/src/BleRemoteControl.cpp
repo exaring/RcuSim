@@ -104,7 +104,7 @@ void BleRemoteControl::begin(void)
   hid->manufacturer()->setValue(deviceManufacturer);
 
   hid->pnp(0x02, vid, pid, version);
-  hid->hidInfo(0x00, 0x01);
+  hid->hidInfo(0x00, 0x00);
 
   BLESecurity* pSecurity = new BLESecurity();
   pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);

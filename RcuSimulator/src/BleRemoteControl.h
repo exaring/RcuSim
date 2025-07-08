@@ -17,9 +17,9 @@
 #include "sdkconfig.h"
 
 // USB HID parameters
-#define VENDOR_ID 0x02d01                 // Vendor ID 
-#define PRODUCT_ID 0xc02e                // Product ID
-#define VERSION_ID 0x0111                // Version number
+#define VENDOR_ID 0x012d                 // Vendor ID 
+#define PRODUCT_ID 0x2ec0                // Product ID
+#define VERSION_ID 0x1101                // Version number
 
 #if defined(CONFIG_ARDUHAL_ESP_LOG)
   #include "esp32-hal-log.h"
@@ -153,9 +153,11 @@ static const uint8_t _hidReportDescriptor[] = {
  
 // Consumer Control Keys (updated to match analyzed descriptor)
 // Values must be within 1-1023 range as per descriptor
+#define KEY_MEDIA_PROGRAM           0x0007
+#define KEY_MEDIA_PREVIOUS_CHANNEL  0x0201
 #define KEY_MEDIA_MUTE              0x00E2
-#define KEY_MEDIA_VOL_UP            0x9C00
-#define KEY_MEDIA_VOL_DOWN          0x9D00
+#define KEY_MEDIA_VOL_UP            0x00E9
+#define KEY_MEDIA_VOL_DOWN          0x00EA
 #define KEY_MEDIA_PLAY_PAUSE        0x00CD
 #define KEY_MEDIA_NEXT              0x00B5
 #define KEY_MEDIA_PREVIOUS          0x00B6
@@ -175,15 +177,10 @@ static const uint8_t _hidReportDescriptor[] = {
 #define KEY_MEDIA_CHANNEL_DOWN      0x009D
 #define KEY_MEDIA_POWER             0x0030
 #define KEY_MEDIA_TV                0x001C
-#define KEY_MEDIA_ASSISTANT         0x0221
-#define KEY_MEDIA_APP1              0x0294
-#define KEY_MEDIA_APP2              0x0295
-/*
-#define KEY_MEDIA_VOL_UP            0x00E9
-#define KEY_MEDIA_VOL_DOWN          0x00EA
-#define KEY_MEDIA_CHANNEL_UP        0x009C
-#define KEY_MEDIA_CHANNEL_DOWN      0x009D
-*/
+#define KEY_MEDIA_ASSISTANT         0x2102
+#define KEY_MEDIA_APP_NETFLIX       0x000A
+#define KEY_MEDIA_APP_WAIPUTHEK     0x00D2
+
 //  Low level key report: up to 6 keys and shift, ctrl etc at once
 typedef struct
 {
@@ -257,6 +254,8 @@ const KeyMapping keyMappings[] = {
 
 // Mapping from string names to media keycodes (updated for analyzed descriptor)
 const MediaKeyMapping mediaKeyMappings[] = {
+  {"program", KEY_MEDIA_PROGRAM},
+  {"chprev", KEY_MEDIA_PREVIOUS_CHANNEL},
   {"power", KEY_MEDIA_POWER},
   {"tv", KEY_MEDIA_TV},
   {"menu", KEY_MEDIA_MENU},
@@ -268,10 +267,8 @@ const MediaKeyMapping mediaKeyMappings[] = {
   {"channelup", KEY_MEDIA_CHANNEL_UP},
   {"chup", KEY_MEDIA_CHANNEL_UP},
   {"chdown", KEY_MEDIA_CHANNEL_DOWN},
-  {"channeldown", KEY_MEDIA_CHANNEL_DOWN},
   {"rewind", KEY_MEDIA_REWIND},
   {"record", KEY_MEDIA_RECORD},
-  {"fastforward", KEY_MEDIA_FAST_FORWARD},
   {"ff", KEY_MEDIA_FAST_FORWARD},
   {"next", KEY_MEDIA_NEXT},
   {"previous", KEY_MEDIA_PREVIOUS},
@@ -283,8 +280,8 @@ const MediaKeyMapping mediaKeyMappings[] = {
   {"volup", KEY_MEDIA_VOL_UP},
   {"voldown", KEY_MEDIA_VOL_DOWN},
   {"mute", KEY_MEDIA_MUTE},
-  {"app1", KEY_MEDIA_APP1},
-  {"app2", KEY_MEDIA_APP2}
+  {"netflix", KEY_MEDIA_APP_NETFLIX},
+  {"waiputhek", KEY_MEDIA_APP_WAIPUTHEK}
 };
 
 #define SHIFT 0x80

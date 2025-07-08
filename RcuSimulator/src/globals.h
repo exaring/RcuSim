@@ -9,8 +9,8 @@
 
 // ================ CONFIGURATION PARAMETERS ================
 // Customize these values to change the BLE device properties
-#define BLE_DEVICE_NAME "Examote One"  // Device name shown in Bluetooth settings
-#define BLE_MANUFACTURER_NAME "Exaring"     // Manufacturer name
+#define BLE_DEVICE_NAME "waipu.tv Fernbedienung 2"  // Device name shown in Bluetooth settings
+#define BLE_MANUFACTURER_NAME ""     // Manufacturer name
 #define BLE_INITIAL_BATTERY_LEVEL 100         // Initial battery level (0-100)
 // =========================================================
 

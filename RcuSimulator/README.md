@@ -58,3 +58,10 @@ Parameters: key (required)
 ```http://{ipaddress}/api/system/battery?level={level}```Set Battery Level - Set the reported battery level
 Parameters: level (0-100)
 ```http://{ipaddress}/api/system/reboot``` - Restart the ESP32
+
+
+## Other stuff
+### Potential housings
+https://www.thingiverse.com/thing:2448685
+https://www.printables.com/model/503766-case-for-096-oled-wemos-d1-mini-push-buttons?lang=de
+https://www.printables.com/model/585299-ssd1306-case
