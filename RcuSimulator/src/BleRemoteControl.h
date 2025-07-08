@@ -12,14 +12,18 @@
 #include <BLE2902.h>
 #include <BLEHIDDevice.h>
 #include <BLECharacteristic.h>
+#include <Preferences.h>
 #include "HIDTypes.h"
 #include <driver/adc.h>
 #include "sdkconfig.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_gap_ble_api.h"
 
 // USB HID parameters
 #define VENDOR_ID 0x012d                 // Vendor ID 
 #define PRODUCT_ID 0x2ec0                // Product ID
-#define VERSION_ID 0x1101                // Version number
+#define VERSION_ID 0x0000                // Version number
 
 #if defined(CONFIG_ARDUHAL_ESP_LOG)
   #include "esp32-hal-log.h"
@@ -177,7 +181,7 @@ static const uint8_t _hidReportDescriptor[] = {
 #define KEY_MEDIA_CHANNEL_DOWN      0x009D
 #define KEY_MEDIA_POWER             0x0030
 #define KEY_MEDIA_TV                0x001C
-#define KEY_MEDIA_ASSISTANT         0x2102
+#define KEY_MEDIA_ASSISTANT         0x0221
 #define KEY_MEDIA_APP_NETFLIX       0x000A
 #define KEY_MEDIA_APP_WAIPUTHEK     0x00D2
 
@@ -438,10 +442,16 @@ private:
   bool connected = false;
   bool isAdvertisingMode = false;
   uint32_t _delay_ms = 7;
-  uint16_t vid = 0x05ac;
-  uint16_t pid = 0x820a;
+  uint16_t vid = 0x05ac;  uint16_t pid = 0x820a;
   uint16_t version = 0x0210;
   BLEServer* pServer = nullptr;
+  Preferences preferences;
+  
+  // MAC address management
+  uint8_t customMacAddress[6];
+  bool useCustomMac = false;
+  bool macAddressSet = false;
+  
   // Callback function for connection events
   typedef std::function<void(String)> ConnectionCallback;
   ConnectionCallback connectCallback = nullptr;
@@ -457,12 +467,18 @@ private:
   void sendMediaReport(MediaKeyReport* keys);
   void sendMediaReport(uint16_t key);
   void sendMediaReport(uint16_t key1, uint16_t key2);
-  size_t press(String key);
-  size_t release(String key);
+  size_t press(String key);  size_t release(String key);
   void delay_ms(uint64_t ms);
+  void loadPreferences(); // Load preferences from NVS
+  void savePreferences(); // Save preferences to NVS
+  
+  // Private helper method for setting BLE MAC address
+  bool setBleMacAddress();
 
 public:
+  // Constructors
   BleRemoteControl(std::string deviceName = "ESP32 BLE Remote Control", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
+  
   void begin(void);
 
   bool startAdvertising(); // Method to specifically start advertising
@@ -482,8 +498,19 @@ public:
 
   void setBatteryLevel(uint8_t level);
   uint8_t getBatteryLevel(void) { return this->batteryLevel; }
-
   void setDefaultDelay(uint32_t ms);
+
+  // MAC address management methods
+  bool setCustomMacAddress(uint8_t macAddress[6]);
+  bool setCustomMacAddress(String macAddressString);
+  void getCurrentMacAddress(uint8_t macAddress[6]);
+  String getCurrentMacAddressString();
+  bool isUsingCustomMac() { return useCustomMac; }
+  
+  // Static helper methods for MAC address validation and parsing
+  static bool isValidMacAddress(uint8_t macAddress[6]);
+  static bool parseMacAddressString(String macStr, uint8_t macAddress[6]);
+  static String macAddressToString(uint8_t macAddress[6]);
 
 protected:
   virtual void onStarted(BLEServer *pServer) { };

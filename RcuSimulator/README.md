@@ -21,6 +21,32 @@ Connect via USB (Silicon Labs CP21xx https://www.silabs.com/developer-tools/usb-
 * Parity None
 * Stopbits 1
 
+### Serial Commands
+Use the `help` command to see all available commands. Key commands include:
+
+#### WiFi Configuration
+- `setssid <ssid>` - Set the WiFi network name
+- `setpwd <password>` - Set the WiFi password
+- `setip <ip>` - Set static IP address (optional)
+- `setgateway <ip>` - Set gateway address (optional)
+- `save` - Save WiFi configuration to memory
+- `connect` - Connect to WiFi with current settings
+- `config` - Show current WiFi configuration
+
+#### BLE Configuration
+- `pair` - Start BLE advertising for pairing
+- `stoppair` - Stop BLE advertising
+- `unpair` - Remove all stored BLE pairings
+- `setmac <mac>` - Set custom BLE MAC address (format: AA:BB:CC:DD:EE:FF)
+- `showmac` - Show current BLE MAC address
+- `ble-status` - Show BLE connection status
+
+#### System Commands
+- `diag` - Show diagnostic information
+- `reboot` - Restart the device
+- `help` - Show all available commands
+* Stopbits 1
+
 ## Config commands
 ```
   help                  - Shows this help

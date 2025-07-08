@@ -75,6 +75,8 @@ void cmdSendSequence(String parameter);
 void cmdSendHex(String parameter);
 void cmdSendHex1(String parameter);
 void cmdSendHex2(String parameter);
+void cmdSetBleMac(String macAddress);
+void cmdShowBleMac(String parameter);
 
 // Function prototypes - System commands
 void cmdReboot(String parameter);

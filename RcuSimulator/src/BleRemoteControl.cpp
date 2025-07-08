@@ -1,4 +1,5 @@
 #include "BleRemoteControl.h"
+#include <cstring>  // For memcpy, memset
 
 bool parseHexString(String hexStr, uint16_t* result) {
   if (hexStr.length() == 0 || result == nullptr) {
@@ -74,23 +75,69 @@ uint16_t parseHexString(String hexStr) {
 
 BleRemoteControl::BleRemoteControl(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
     : hid(0)
-    , deviceName(std::string(deviceName).substr(0, 15))
+    , deviceName(std::string(deviceName))
     , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
-    , batteryLevel(batteryLevel) {
+    , batteryLevel(batteryLevel)
+    , useCustomMac(false)
+    , macAddressSet(false) {
     // Initialize media key report struct
     _mediaKeyReport.consumer1 = 0;
     _mediaKeyReport.consumer2 = 0;
     _mediaKeyReport.padding = 0;
+    
+    // Initialize MAC address array to zero
+}
+
+void BleRemoteControl::loadPreferences() {
+  // Load preferences for custom MAC address
+  preferences.begin("ble", false);
+  
+  // Check if a custom MAC address is set
+  if (preferences.isKey("custom_mac")) {
+    useCustomMac = true;
+    macAddressSet = true;
+    preferences.getBytes("custom_mac", customMacAddress, sizeof(customMacAddress));
+    Serial.print("Custom MAC address loaded: ");
+    for (int i = 0; i < 6; i++) { 
+      Serial.printf("%02X", customMacAddress[i]);
+      if (i < 5) Serial.print(":");
+    } 
+    Serial.println();
+  } else {
+    useCustomMac = false;
+    macAddressSet = false;
+    memset(customMacAddress, 0, 6);
+} 
+  preferences.end();
+}
+
+void BleRemoteControl::savePreferences() {
+  // Save preferences for custom MAC address
+  preferences.begin("ble", false);
+  if (useCustomMac) {
+    preferences.putBytes("custom_mac", customMacAddress, sizeof(customMacAddress));
+  } else {
+    preferences.remove("custom_mac");
+  }
+  preferences.end();
 }
 
 void BleRemoteControl::begin(void)
 {
+    loadPreferences();
+  // Set MAC address BEFORE initializing BLE
+  if (useCustomMac && !macAddressSet) {
+    if (!setBleMacAddress()) {
+      Serial.println("Warning: Failed to set MAC address");
+    }
+  }
+
   // Set USB HID device properties
   this->vid = VENDOR_ID;
   this->pid = PRODUCT_ID;
   this->version = VERSION_ID;
-
   BLEDevice::init(deviceName);
+  
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(this);
 
@@ -358,14 +405,17 @@ void BleRemoteControl::sendMediaReport(MediaKeyReport* keys)
 {
   if (this->isConnected())
   {
-	Serial.print("Sending Media Key Report: ");
-	Serial.print("Consumer1: 0x");
-	Serial.print(keys->consumer1, HEX);
-	Serial.print(", Consumer2: 0x");
-	Serial.print(keys->consumer2, HEX);
-	Serial.print(", Padding: 0x");
-	Serial.println(keys->padding, HEX);
-    this->inputMediaKeys->setValue((uint8_t*)keys, sizeof(MediaKeyReport));
+    uint8_t* data = (uint8_t*)keys;
+    size_t length = 5;// sizeof(MediaKeyReport);
+    Serial.print(length);
+   	Serial.print(" Sending Media Key Report: ");
+    for (size_t i = 0; i < length; i++) {
+        if (data[i] < 0x10) Serial.print("0");
+        Serial.print(data[i], HEX);
+        Serial.print(" ");
+    }  	
+    Serial.println();
+    this->inputMediaKeys->setValue(data, length);
     this->inputMediaKeys->notify();
   }	
 }
@@ -374,34 +424,22 @@ void BleRemoteControl::sendMediaReport(uint16_t key)
 {
   if (this->isConnected())
   {
-	Serial.print("Sending Single Media Key: 0x");
-	Serial.println(key, HEX);
-	
-	_mediaKeyReport.consumer1 = key;
-	_mediaKeyReport.consumer2 = 0;
-	_mediaKeyReport.padding = 0;
-	
-	this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyReport, sizeof(MediaKeyReport));
-	this->inputMediaKeys->notify();
-  }	
+    _mediaKeyReport.consumer1 = key;
+    _mediaKeyReport.consumer2 = 0;
+    _mediaKeyReport.padding = 0;
+    sendMediaReport(&_mediaKeyReport);
+  }
 }
 
 void BleRemoteControl::sendMediaReport(uint16_t key1, uint16_t key2)
 {
   if (this->isConnected())
   {
-	Serial.print("Sending Dual Media Keys: 0x");
-	Serial.print(key1, HEX);
-	Serial.print(", 0x");
-	Serial.println(key2, HEX);
-	
-	_mediaKeyReport.consumer1 = key1;
-	_mediaKeyReport.consumer2 = key2;
-	_mediaKeyReport.padding = 0;
-	
-	this->inputMediaKeys->setValue((uint8_t*)&_mediaKeyReport, sizeof(MediaKeyReport));
-	this->inputMediaKeys->notify();
-  }	
+    _mediaKeyReport.consumer1 = key1;
+    _mediaKeyReport.consumer2 = key2;
+    _mediaKeyReport.padding = 0;
+    sendMediaReport(&_mediaKeyReport);
+  }
 }
 
 // press() adds the specified key (printing, non-printing, or modifier)
@@ -568,4 +606,125 @@ uint8_t BleRemoteControl::getKeyCode(String key) {
 	}
 	
 	return 0; // Not found
+}
+
+// MAC address management implementation
+bool BleRemoteControl::setCustomMacAddress(uint8_t macAddress[6]) {
+  if (!isValidMacAddress(macAddress)) {
+    Serial.println("Invalid MAC address");
+    return false;
+  }
+  
+  // Copy MAC address
+  memcpy(customMacAddress, macAddress, 6);
+  useCustomMac = true;
+  macAddressSet = false; // Will be set in begin()
+  
+  Serial.print("Custom MAC address set: ");
+  Serial.println(macAddressToString(customMacAddress));
+  savePreferences(); // Save to NVS
+  return true;
+}
+
+bool BleRemoteControl::setCustomMacAddress(String macAddressString) {
+  uint8_t macArray[6];
+  if (parseMacAddressString(macAddressString, macArray)) {
+    return setCustomMacAddress(macArray);
+  }
+  return false;
+}
+
+void BleRemoteControl::getCurrentMacAddress(uint8_t macAddress[6]) {
+  if (useCustomMac) {
+    memcpy(macAddress, customMacAddress, 6);
+  } else {
+    // Get original MAC address from ESP32
+    esp_read_mac(macAddress, ESP_MAC_BT);
+  }
+}
+
+String BleRemoteControl::getCurrentMacAddressString() {
+  uint8_t mac[6];
+  getCurrentMacAddress(mac);
+  return macAddressToString(mac);
+}
+
+// Private helper method for actually setting the MAC address
+bool BleRemoteControl::setBleMacAddress() {
+  if (!useCustomMac) {
+    return true;
+  }
+  
+  // Ensure it's a local address
+  uint8_t localMac[6];
+  memcpy(localMac, customMacAddress, 6);
+  localMac[0] |= 0x02; // Set local bit
+  
+  esp_err_t ret = esp_base_mac_addr_set(localMac);
+  
+  if (ret == ESP_OK) {
+    macAddressSet = true;
+    Serial.print("BLE MAC address successfully set: ");
+    Serial.println(macAddressToString(localMac));
+    return true;
+  } else {
+    Serial.print("Error setting BLE MAC address: ");
+    Serial.println(esp_err_to_name(ret));
+    return false;
+  }
+}
+
+// Static helper methods
+bool BleRemoteControl::isValidMacAddress(uint8_t macAddress[6]) {
+  // Check for null MAC
+  bool allZero = true;
+  bool allFF = true;
+  
+  for (int i = 0; i < 6; i++) {
+    if (macAddress[i] != 0x00) allZero = false;
+    if (macAddress[i] != 0xFF) allFF = false;
+  }
+  
+  // Invalid if all zero or all FF
+  return !(allZero || allFF);
+}
+
+bool BleRemoteControl::parseMacAddressString(String macStr, uint8_t macAddress[6]) {
+  // Format: "AA:BB:CC:DD:EE:FF" or "AA-BB-CC-DD-EE-FF" or "AABBCCDDEEFF"
+  macStr.trim();
+  macStr.toUpperCase();
+  
+  macStr.replace(":", "");
+  macStr.replace("-", "");
+  macStr.replace(" ", "");
+  
+  if (macStr.length() != 12) {
+    return false;
+  }
+  
+  // Parse each byte
+  for (int i = 0; i < 6; i++) {
+    String byteStr = macStr.substring(i * 2, i * 2 + 2);
+    char* endPtr;
+    unsigned long value = strtoul(byteStr.c_str(), &endPtr, 16);
+    
+    if (*endPtr != '\0' || value > 255) {
+      return false;
+    }
+    
+    macAddress[i] = (uint8_t)value;
+  }
+  
+  return isValidMacAddress(macAddress);
+}
+
+String BleRemoteControl::macAddressToString(uint8_t macAddress[6]) {
+  String result = "";
+  for (int i = 0; i < 6; i++) {
+    if (macAddress[i] < 0x10) result += "0";
+    result += String(macAddress[i], HEX);
+    if (i < 5) result += ":";
+  }
+  result.toUpperCase();
+  return result;
 }

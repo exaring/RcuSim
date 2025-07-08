@@ -86,25 +86,27 @@ const CommandHandler commandHandlers[] = {
   {"config",      cmdShowConfig,        false, "config                       - Shows the current WiFi configuration",               "WiFi Configuration"},
   
   // BLE Remote Control
-  {"pair",        cmdStartPairing,      false, "pair                         - Start BLE advertising for pairing",                   "BLE Remote Control"},
-  {"ble-pair",    cmdStartPairing,      false, "ble-pair                     - Start BLE advertising for pairing",                   "BLE Remote Control"},
-  {"stoppair",    cmdStopPairing,       false, "stoppair                     - Stop BLE advertising",                                "BLE Remote Control"},
-  {"ble-stoppair", cmdStopPairing,      false, "ble-stoppair                 - Stop BLE advertising",                                "BLE Remote Control"},
-  {"unpair",      cmdUnpair,            false, "unpair                       - Remove all stored BLE pairings",                      "BLE Remote Control"},
-  {"ble-unpair",  cmdUnpair,            false, "ble-unpair                   - Remove all stored BLE pairings",                      "BLE Remote Control"},
+  {"pair",        cmdStartPairing,      false, "pair                         - Start BLE advertising for pairing",                  "BLE Remote Control"},
+  {"ble-pair",    cmdStartPairing,      false, "ble-pair                     - Start BLE advertising for pairing",                  "BLE Remote Control"},
+  {"stoppair",    cmdStopPairing,       false, "stoppair                     - Stop BLE advertising",                               "BLE Remote Control"},
+  {"ble-stoppair", cmdStopPairing,      false, "ble-stoppair                 - Stop BLE advertising",                               "BLE Remote Control"},
+  {"unpair",      cmdUnpair,            false, "unpair                       - Remove all stored BLE pairings",                     "BLE Remote Control"},
+  {"ble-unpair",  cmdUnpair,            false, "ble-unpair                   - Remove all stored BLE pairings",                     "BLE Remote Control"},
   {"key",         cmdSendKey,           true,  "key <keyname> [delay]        - Press and release a key with optional delay (ms)",   "BLE Remote Control"},
-  {"press",       cmdPressKey,          true,  "press <keyname>              - Press a key without releasing",                       "BLE Remote Control"},
-  {"release",     cmdReleaseKey,        true,  "release <keyname>            - Release a previously pressed key",                    "BLE Remote Control"},
-  {"releaseall",  cmdReleaseAllKeys,    false, "releaseall                   - Release all currently pressed keys",                  "BLE Remote Control"},
+  {"press",       cmdPressKey,          true,  "press <keyname>              - Press a key without releasing",                      "BLE Remote Control"},
+  {"release",     cmdReleaseKey,        true,  "release <keyname>            - Release a previously pressed key",                   "BLE Remote Control"},
+  {"releaseall",  cmdReleaseAllKeys,    false, "releaseall                   - Release all currently pressed keys",                 "BLE Remote Control"},
   {"battery",     cmdSetBatteryLevel,   true,  "battery <level>              - Set the reported battery level (0-100)",             "BLE Remote Control"},
-  {"ble-status",  cmdShowBleStatus,     false, "ble-status                   - Show current BLE connection status",                  "BLE Remote Control"},
+  {"ble-status",  cmdShowBleStatus,     false, "ble-status                   - Show current BLE connection status",                 "BLE Remote Control"},
   {"seq",         cmdSendSequence,      true,  "seq <start> <end> <delay>    - Send sequence of hex values as keys",                "BLE Remote Control"},
   {"hex",         cmdSendHex,           true,  "hex <hex1> <hex2> [delay]    - Send hex key pair for custom controls",              "BLE Remote Control"},
-  {"hex1",        cmdSendHex1,          true,  "hex1 <hex> [delay]           - Send 1-byte hex key",                                 "BLE Remote Control"},
-  {"hex2",        cmdSendHex2,          true,  "hex2 <hex> [delay]           - Send 2-byte hex key",                                 "BLE Remote Control"},
+  {"hex1",        cmdSendHex1,          true,  "hex1 <hex> [delay]           - Send first hex key only",                            "BLE Remote Control"},  {"hex2",        cmdSendHex2,          true,  "hex2 <hex> [delay]           - Send 2-byte hex key",                                 "BLE Remote Control"},
+  {"hex2",        cmdSendHex2,          true,  "hex2 <hex> [delay]           - Send second hex key only",                           "BLE Remote Control"},  {"hex2",        cmdSendHex2,          true,  "hex2 <hex> [delay]           - Send 2-byte hex key",                                 "BLE Remote Control"},
+  {"setmac",      cmdSetBleMac,         true,  "setmac <mac>                 - Set custom BLE MAC address (AA:BB:CC:DD:EE:FF) - REBOOT!", "BLE Remote Control"},
+  {"showmac",     cmdShowBleMac,        false, "showmac                      - Show current BLE MAC address",                       "BLE Remote Control"},
   
   // System Commands
-  {"help",        printHelp,            false, "help                         - Shows this help",                                      "System Commands"},
+  {"help",        printHelp,            false, "help                         - Shows this help",                                     "System Commands"},
   {"reboot",      cmdReboot,            false, "reboot                       - Restarts the device",                                 "System Commands"},
   {"diag",        cmdDiag,              false, "diag                         - Shows diagnostic information",                        "System Commands"},
   
@@ -114,6 +116,7 @@ const CommandHandler commandHandlers[] = {
 // The main setup routine executed once at bootup
 void setup() {
   Serial.begin(115200);
+  esp_log_level_set("wifi", ESP_LOG_ERROR);
   Serial.println("Starting ESP32 BLE Remote Control");
 
   // Initialize EEPROM
@@ -604,4 +607,25 @@ void setupBLE() {
   
   // Wait for initialization
   delay(500);
+}
+
+void cmdSetBleMac(String macAddress) {
+  if (!validateNonEmpty(macAddress, "Missing MAC address")) {
+    return;
+  }
+  
+  if (bleRemoteControl.setCustomMacAddress(macAddress)) {
+    printSuccessMessage("BLE MAC address successfully set");
+    Serial.println("Note: Restart required for activation");
+  } else {
+    printErrorMessage("Error: Invalid MAC address");
+    Serial.println("Format: AA:BB:CC:DD:EE:FF");
+  }
+}
+
+void cmdShowBleMac(String parameter) {
+  Serial.print("Current BLE MAC address: ");
+  Serial.println(bleRemoteControl.getCurrentMacAddressString());
+  Serial.print("Using custom MAC: ");
+  Serial.println(bleRemoteControl.isUsingCustomMac() ? "Yes" : "No");
 }
