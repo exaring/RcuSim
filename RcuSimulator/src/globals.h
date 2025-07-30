@@ -7,12 +7,7 @@
 #include "wifimanager.h"
 #include "BleRemoteControl.h"
 
-// ================ CONFIGURATION PARAMETERS ================
-// Customize these values to change the BLE device properties
-#define BLE_DEVICE_NAME "waipu.tv Fernbedienung 2"  // Device name shown in Bluetooth settings
-#define BLE_MANUFACTURER_NAME ""     // Manufacturer name
-#define BLE_INITIAL_BATTERY_LEVEL 100         // Initial battery level (0-100)
-// =========================================================
+#define USE_DISPLAY // Define this to enable display functionality
 
 // Error codes
 #define ERR_PREFIX "ERROR:"

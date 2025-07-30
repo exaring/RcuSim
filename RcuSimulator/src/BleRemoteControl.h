@@ -20,10 +20,16 @@
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
 
-// USB HID parameters
-#define VENDOR_ID 0x012d                 // Vendor ID 
-#define PRODUCT_ID 0x2ec0                // Product ID
-#define VERSION_ID 0x0000                // Version number
+// Default device parameters
+#define HID_VENDOR_ID 0x012d                            // Vendor ID 
+#define HID_PRODUCT_ID 0x2ec0                           // Product ID
+#define HID_VERSION_ID 0x0000                           // Version number
+#define HID_COUNTRY_CODE 0                          // Default country code (0 = not set)
+#define HID_FLAGS 0x00                          // HID flags (default: 0x00)
+#define BLE_DEVICE_NAME "waipu.tv Fernbedienung 2"  // Device name shown in Bluetooth settings
+#define BLE_MANUFACTURER_NAME ""                    // Manufacturer name
+#define BLE_INITIAL_BATTERY_LEVEL 100               // Initial battery level (0-100)
+
 
 #if defined(CONFIG_ARDUHAL_ESP_LOG)
   #include "esp32-hal-log.h"
@@ -268,7 +274,6 @@ const MediaKeyMapping mediaKeyMappings[] = {
   {"mkdown", KEY_MEDIA_DOWN},
   {"mkleft", KEY_MEDIA_LEFT},
   {"mkright", KEY_MEDIA_RIGHT},
-  {"channelup", KEY_MEDIA_CHANNEL_UP},
   {"chup", KEY_MEDIA_CHANNEL_UP},
   {"chdown", KEY_MEDIA_CHANNEL_DOWN},
   {"rewind", KEY_MEDIA_REWIND},
@@ -436,16 +441,22 @@ private:
   BLEAdvertising*    advertising;
   KeyReport      _keyReport;
   MediaKeyReport _mediaKeyReport;
-  std::string deviceName;
-  std::string deviceManufacturer;
-  uint8_t     batteryLevel;
   bool connected = false;
   bool isAdvertisingMode = false;
   uint32_t _delay_ms = 7;
-  uint16_t vid = 0x05ac;  uint16_t pid = 0x820a;
-  uint16_t version = 0x0210;
   BLEServer* pServer = nullptr;
   Preferences preferences;
+  
+  // Device configuration storage
+  uint16_t vendorId = HID_VENDOR_ID;
+  uint16_t productId = HID_PRODUCT_ID;
+  uint16_t versionId = HID_VERSION_ID;
+  uint8_t countryCode = HID_COUNTRY_CODE;
+  uint8_t hidFlags = HID_FLAGS;
+  std::string deviceName = BLE_DEVICE_NAME;
+  std::string deviceManufacturer = BLE_MANUFACTURER_NAME;
+  uint8_t initialBatteryLevel = BLE_INITIAL_BATTERY_LEVEL;
+  uint8_t batteryLevel = BLE_INITIAL_BATTERY_LEVEL;
   
   // MAC address management
   uint8_t customMacAddress[6];
@@ -469,15 +480,15 @@ private:
   void sendMediaReport(uint16_t key1, uint16_t key2);
   size_t press(String key);  size_t release(String key);
   void delay_ms(uint64_t ms);
-  void loadPreferences(); // Load preferences from NVS
-  void savePreferences(); // Save preferences to NVS
+  void loadConfig(); // Load device configuration from preferences
+  void saveConfig(); // Save device configuration to preferences
   
   // Private helper method for setting BLE MAC address
   bool setBleMacAddress();
 
 public:
   // Constructors
-  BleRemoteControl(std::string deviceName = "ESP32 BLE Remote Control", std::string deviceManufacturer = "Espressif", uint8_t batteryLevel = 100);
+  BleRemoteControl();
   
   void begin(void);
 
@@ -496,17 +507,45 @@ public:
   bool sendRelease(String key);
   void releaseAll(void);
 
-  void setBatteryLevel(uint8_t level);
-  uint8_t getBatteryLevel(void) { return this->batteryLevel; }
-  void setDefaultDelay(uint32_t ms);
 
   // MAC address management methods
-  bool setCustomMacAddress(uint8_t macAddress[6]);
-  bool setCustomMacAddress(String macAddressString);
+  bool setMacAddress(uint8_t macAddress[6]);
+  bool setMacAddress(String macAddressString);
   void getCurrentMacAddress(uint8_t macAddress[6]);
   String getCurrentMacAddressString();
   bool isUsingCustomMac() { return useCustomMac; }
   
+  // Device configuration methods
+  bool setVendorId(uint16_t vendorId);
+  bool setProductId(uint16_t productId);
+  bool setVersionId(uint16_t versionId);
+  bool setDeviceName(const String& deviceName);
+  void setBatteryLevel(uint8_t level);
+  void setInitialBatteryLevel(uint8_t level);
+  void setManufacturerName(const String& manufacturerName);
+  void setCountryCode(uint8_t countryCode);
+  void setHidFlags(uint8_t flags);
+  void setDefaultDelay(uint32_t ms);
+  
+  // Getters for device configuration
+  uint16_t getVendorId() const { return vendorId; }
+  uint16_t getProductId() const { return productId; }
+  uint16_t getVersionId() const { return versionId; }
+  uint8_t getCountryCode() const { return countryCode; }
+  uint8_t getHidFlags() const { return hidFlags; }
+  String getDeviceName() const { return deviceName.c_str(); }
+  String getManufacturerName() const { return deviceManufacturer.c_str(); }
+  uint8_t getInitialBatteryLevel(void) { return this->initialBatteryLevel; }
+  uint8_t getBatteryLevel(void) { return this->batteryLevel; }
+  
+  // Configuration management
+  bool saveConfiguration();
+  bool loadConfiguration();
+  void resetConfiguration();
+  
+  // Print current configuration
+  void printConfiguration();
+
   // Static helper methods for MAC address validation and parsing
   static bool isValidMacAddress(uint8_t macAddress[6]);
   static bool parseMacAddressString(String macStr, uint8_t macAddress[6]);

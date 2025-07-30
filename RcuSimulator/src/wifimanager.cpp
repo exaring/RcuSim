@@ -274,9 +274,6 @@ void WiFiManager::loop() {
         if (!_isConnected) {
             // Connection was established
             _isConnected = true;
-            Serial.println("WiFi connected");
-            Serial.print("IP address: ");
-            Serial.println(WiFi.localIP());
         }
     } else {
         if (_isConnected) {

@@ -27,21 +27,7 @@ ParsedCommand parseTwoHexCommand(const String& parameter, int defaultDelay = 100
 unsigned long parseHexValue(const String& hexStr);
 bool isValidHexString(const String& hexStr);
 String formatHex16(uint16_t value);
-
-// Validation utilities
-bool validateNonEmpty(const String& value, const String& errorMessage);
-bool validateRange(int value, int min, int max, const String& errorMessage);
-bool validateHexAndParse(const String& hexStr, unsigned long& result, const String& errorMessage);
-
-// BLE connection utilities
-bool checkBleConnection();
-
-// Message printing utilities
-void printParameterError(const String& usage);
-void printSuccessMessage(const String& message);
-void printErrorMessage(const String& message);
-void printGenericError(int errorCode, const String& message);
-void printStatusMessage(int statusCode, const String& message);
-void printUnknownCommandError(const String& command);
+bool parseHexValue16(const String& hexStr, uint16_t& result);
+bool parseHexValue8(const String& hexStr, uint8_t& result);
 
 #endif // UTILS_H

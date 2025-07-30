@@ -1,130 +1,70 @@
 #include "BleRemoteControl.h"
+#include "utils.h"
 #include <cstring>  // For memcpy, memset
 
-bool parseHexString(String hexStr, uint16_t* result) {
-  if (hexStr.length() == 0 || result == nullptr) {
-    return false;
-  }
-  
-  // String trimmen
-  hexStr.trim();
-  
-  // Leerer String nach trim
-  if (hexStr.length() == 0) {
-    return false;
-  }
-  
-  // Prefix entfernen falls vorhanden
-  String cleanHex = hexStr;
-  if (hexStr.startsWith("0x") || hexStr.startsWith("0X")) {
-    cleanHex = hexStr.substring(2);
-  }
-  
-  // Prüfen ob noch Zeichen übrig sind
-  if (cleanHex.length() == 0) {
-    return false;
-  }
-  
-  // Maximale Länge für 16-bit prüfen (4 Hex-Zeichen = FFFF)
-  if (cleanHex.length() > 4) {
-    return false;
-  }
-  
-  // Prüfen ob alle Zeichen gültige Hex-Zeichen sind
-  for (unsigned int i = 0; i < cleanHex.length(); i++) {
-    char c = cleanHex.charAt(i);
-    if (!((c >= '0' && c <= '9') || 
-          (c >= 'A' && c <= 'F') || 
-          (c >= 'a' && c <= 'f'))) {
-      return false;
-    }
-  }
-  
-  // String zu uppercase konvertieren für einheitliche Verarbeitung
-  cleanHex.toUpperCase();
-  
-  // Hex-String in Zahl konvertieren
-  char* endPtr;
-  unsigned long value = strtoul(cleanHex.c_str(), &endPtr, 16);
-  
-  // Prüfen ob Konvertierung erfolgreich war
-  if (*endPtr != '\0') {
-    return false;
-  }
-  
-  // Prüfen ob Wert im 16-bit Bereich liegt
-  if (value > 0xFFFF) {
-    return false;
-  }
-  
-  // Ergebnis setzen
-  *result = (uint16_t)value;
-  return true;
-}
-
-/**
- * Überladene Version die das Ergebnis direkt zurückgibt
- * Gibt 0 zurück bei Parsing-Fehlern (verwende die Pointer-Version für Fehlerbehandlung)
- */
-uint16_t parseHexString(String hexStr) {
-  uint16_t result = 0;
-  parseHexString(hexStr, &result);
-  return result;
-}
-
-
-BleRemoteControl::BleRemoteControl(std::string deviceName, std::string deviceManufacturer, uint8_t batteryLevel) 
+BleRemoteControl::BleRemoteControl() 
     : hid(0)
-    , deviceName(std::string(deviceName))
-    , deviceManufacturer(std::string(deviceManufacturer).substr(0,15))
-    , batteryLevel(batteryLevel)
-    , useCustomMac(false)
-    , macAddressSet(false) {
+{
     // Initialize media key report struct
     _mediaKeyReport.consumer1 = 0;
     _mediaKeyReport.consumer2 = 0;
     _mediaKeyReport.padding = 0;
-    
-    // Initialize MAC address array to zero
+    loadConfig();
 }
 
-void BleRemoteControl::loadPreferences() {
-  // Load preferences for custom MAC address
-  preferences.begin("ble", false);
+void BleRemoteControl::loadConfig() {
+  // Load preferences for custom MAC address and device configuration
+  preferences.begin("ble", true); // Read-only mode
   
-  // Check if a custom MAC address is set
+  // Load MAC address configuration
   if (preferences.isKey("custom_mac")) {
     useCustomMac = true;
     macAddressSet = true;
     preferences.getBytes("custom_mac", customMacAddress, sizeof(customMacAddress));
-    Serial.print("Custom MAC address loaded: ");
-    for (int i = 0; i < 6; i++) { 
-      Serial.printf("%02X", customMacAddress[i]);
-      if (i < 5) Serial.print(":");
-    } 
-    Serial.println();
   } else {
     useCustomMac = false;
     macAddressSet = false;
     memset(customMacAddress, 0, 6);
-} 
+  }
+  
+  vendorId = preferences.getUShort("vendor_id", HID_VENDOR_ID);
+  productId = preferences.getUShort("product_id", HID_PRODUCT_ID);
+  versionId = preferences.getUShort("version_id", HID_VERSION_ID);
+  deviceName = preferences.getString("device_name", BLE_DEVICE_NAME).c_str();
+  deviceManufacturer = preferences.getString("manufacturer_name", BLE_MANUFACTURER_NAME).c_str();
+  countryCode = preferences.getUChar("country_code", HID_COUNTRY_CODE);
+  hidFlags = preferences.getUChar("hid_flags", HID_FLAGS);
+  batteryLevel = preferences.getUChar("initial_battery_level", BLE_INITIAL_BATTERY_LEVEL);
+
   preferences.end();
 }
 
-void BleRemoteControl::savePreferences() {
-  // Save preferences for custom MAC address
+void BleRemoteControl::saveConfig() {
+  // Save preferences for custom MAC address and device configuration
   preferences.begin("ble", false);
+  
+  // Save MAC address
   if (useCustomMac) {
     preferences.putBytes("custom_mac", customMacAddress, sizeof(customMacAddress));
   } else {
     preferences.remove("custom_mac");
   }
+
+  preferences.putUShort("vendor_id", vendorId);
+  preferences.putUShort("product_id", productId);
+  preferences.putUShort("version_id", versionId);
+  preferences.putString("device_name", deviceName.c_str());
+  preferences.putString("manufacturer_name", deviceManufacturer.c_str());
+  preferences.putUChar("country_code", countryCode);
+  preferences.putUChar("hid_flags", hidFlags);
+  preferences.putUChar("initial_battery_level", batteryLevel);
   preferences.end();
 }
 
 void BleRemoteControl::begin(void)
 {
-    loadPreferences();
+  loadConfig();
+  
   // Set MAC address BEFORE initializing BLE
   if (useCustomMac && !macAddressSet) {
     if (!setBleMacAddress()) {
@@ -132,12 +72,10 @@ void BleRemoteControl::begin(void)
     }
   }
 
-  // Set USB HID device properties
-  this->vid = VENDOR_ID;
-  this->pid = PRODUCT_ID;
-  this->version = VERSION_ID;
-  BLEDevice::init(deviceName);
-  
+  // Use custom device name if set
+  String currentDeviceName = getDeviceName();
+  BLEDevice::init(currentDeviceName.c_str());
+
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(this);
 
@@ -148,10 +86,12 @@ void BleRemoteControl::begin(void)
 
   outputKeyboard->setCallbacks(this);
 
-  hid->manufacturer()->setValue(deviceManufacturer);
+//  if(!deviceManufacturer.empty()) {
+    hid->manufacturer()->setValue(deviceManufacturer);
+//  }
 
-  hid->pnp(0x02, vid, pid, version);
-  hid->hidInfo(0x00, 0x00);
+  hid->pnp(0x02, vendorId, productId, versionId);
+  hid->hidInfo(countryCode, hidFlags);
 
   BLESecurity* pSecurity = new BLESecurity();
   pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
@@ -161,15 +101,14 @@ void BleRemoteControl::begin(void)
 
   onStarted(pServer);
 
+  
   advertising = pServer->getAdvertising();
-  advertising->setAppearance(HID_KEYBOARD);
+  //advertising->setAppearance(HID_KEYBOARD);  // Check with 0x0180
+  advertising->setAppearance(0x0180);
   advertising->addServiceUUID(hid->hidService()->getUUID());
   advertising->setScanResponse(false);
   
-  // Don't start advertising automatically
-  // Call startAdvertising() explicitly instead
-  
-  hid->setBatteryLevel(batteryLevel);
+  hid->setBatteryLevel(initialBatteryLevel);
 
   ESP_LOGD(LOG_TAG, "BLE HID device initialized!");
 }
@@ -192,16 +131,9 @@ void BleRemoteControl::stopAdvertising() {
 	}
   }
 
-/**
- * @brief Removes all stored pairings and bondings
- * 
- * @return bool - true if the operation was successful
- */
 bool BleRemoteControl::removeBonding() {
 	// For standard BLE version (esp32-arduino BLE)
 	// Direct access to the ESP-BLE-API for removing bondings
-	
-	// Remove all bonded devices
 	int dev_num = esp_ble_get_bond_device_num();
 	if (dev_num > 0) {
 	  esp_ble_bond_dev_t *dev_list = (esp_ble_bond_dev_t *)malloc(sizeof(esp_ble_bond_dev_t) * dev_num);
@@ -211,26 +143,19 @@ bool BleRemoteControl::removeBonding() {
 	  }
 	  free(dev_list);
 	  return true;
-	}
-	
+	}	
 	return false;
   }
-/**
- * @brief Actively disconnects from the connected device
- * 
- * @return bool - true if a device was connected and the connection was terminated, false otherwise
- */
-bool BleRemoteControl::disconnect() {
-	if (this->connected && pServer != nullptr) {
-	  // Standard BLE Disconnect
-	  // The disconnect method returns void, so check if connected
-	  if (pServer->getConnectedCount() > 0) {
-		// Use disconnect method
-		pServer->disconnect(0); // 0 for all connections
-		return true;
-	  }
-	}
-	return false;
+
+  bool BleRemoteControl::disconnect() {
+    if (this->connected && pServer != nullptr) {
+      // The disconnect method returns void, so check if connected
+      if (pServer->getConnectedCount() > 0) {
+        pServer->disconnect(0); // 0 for all connections
+        return true;
+      }
+    }
+    return false;
   }
 
 void BleRemoteControl::onDisconnect(BLEServer* pServer) {
@@ -287,16 +212,7 @@ bool BleRemoteControl::sendPress(String k)
     // Determine key and press
     uint8_t keyCode = 0;
 
-    // Check if keyName is a hex value (format: 0xXX)
-    if (k.startsWith("0x") && k.length() > 2) {
-        // Convert hex string to integer
-        char* endPtr;
-        keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
-        if (*endPtr != '\0') {
-            // Conversion failed
-            return false;
-        }
-    } else if (k.length() == 1) {
+    if (k.length() == 1) {
         // Single character
         keyCode = k.charAt(0);
     } else {
@@ -315,7 +231,7 @@ bool BleRemoteControl::sendPress(String k)
 bool BleRemoteControl::sendMediaKeyHex(String k, uint8_t position, uint32_t delay_ms)
 {
   uint16_t result = 0;
-  if(!parseHexString(k, &result)) {
+  if(!parseHexValue16(k, result)) {
     return false;
   } else {
     if(position == 1) {
@@ -351,16 +267,7 @@ bool BleRemoteControl::sendRelease(String k)
     // Determine key and release
     uint8_t keyCode = 0;
 
-    // Check if keyName is a hex value (format: 0xXX)
-    if (k.startsWith("0x") && k.length() > 2) {
-        // Convert hex string to integer
-        char* endPtr;
-        keyCode = (uint8_t)strtol(k.c_str(), &endPtr, 16);
-        if (*endPtr != '\0') {
-            // Conversion failed
-            return false;
-        }
-    } else if (k.length() == 1) {
+    if (k.length() == 1) {
         // Single character
         keyCode = k.charAt(0);
     } else {
@@ -609,9 +516,8 @@ uint8_t BleRemoteControl::getKeyCode(String key) {
 }
 
 // MAC address management implementation
-bool BleRemoteControl::setCustomMacAddress(uint8_t macAddress[6]) {
+bool BleRemoteControl::setMacAddress(uint8_t macAddress[6]) {
   if (!isValidMacAddress(macAddress)) {
-    Serial.println("Invalid MAC address");
     return false;
   }
   
@@ -619,17 +525,14 @@ bool BleRemoteControl::setCustomMacAddress(uint8_t macAddress[6]) {
   memcpy(customMacAddress, macAddress, 6);
   useCustomMac = true;
   macAddressSet = false; // Will be set in begin()
-  
-  Serial.print("Custom MAC address set: ");
-  Serial.println(macAddressToString(customMacAddress));
-  savePreferences(); // Save to NVS
+  saveConfig(); // Save to NVS
   return true;
 }
 
-bool BleRemoteControl::setCustomMacAddress(String macAddressString) {
+bool BleRemoteControl::setMacAddress(String macAddressString) {
   uint8_t macArray[6];
   if (parseMacAddressString(macAddressString, macArray)) {
-    return setCustomMacAddress(macArray);
+    return setMacAddress(macArray);
   }
   return false;
 }
@@ -727,4 +630,107 @@ String BleRemoteControl::macAddressToString(uint8_t macAddress[6]) {
   }
   result.toUpperCase();
   return result;
+}
+
+bool BleRemoteControl::setVendorId(uint16_t vendorId) {
+  if (vendorId == 0) {
+    return false;
+  }
+  this->vendorId = vendorId;
+  return true;
+}
+
+bool BleRemoteControl::setProductId(uint16_t productId) {
+  this->productId = productId;
+  return true;
+}
+
+bool BleRemoteControl::setVersionId(uint16_t versionId) {
+  this->versionId = versionId;
+  Serial.printf("Custom Version ID set to: 0x%04X\n", versionId);
+  return true;
+}
+
+bool BleRemoteControl::setDeviceName(const String& deviceName) {
+  if (deviceName.length() == 0 || deviceName.length() > 64) {
+    return false;
+  }
+  this->deviceName = deviceName.c_str();
+  return true;
+}
+
+void BleRemoteControl::setInitialBatteryLevel(uint8_t batteryLevel) {
+  if (batteryLevel > 100) {
+    batteryLevel = 100;
+  }
+  this->initialBatteryLevel = batteryLevel;
+}
+
+void BleRemoteControl::setManufacturerName(const String& manufacturerName) {
+  if (manufacturerName.length() == 0 || manufacturerName.length() > 64) {
+    return;
+  }
+  this->deviceManufacturer = manufacturerName.c_str();
+}
+
+void BleRemoteControl::setCountryCode(uint8_t countryCode) {
+  if (countryCode > 0xFF) {
+    countryCode = 0x00; // Default to 0 if invalid
+  }
+  this->countryCode = countryCode;
+}
+
+void BleRemoteControl::setHidFlags(uint8_t hidFlags) {
+  this->hidFlags = hidFlags;
+}
+
+void BleRemoteControl::resetConfiguration() {
+  preferences.begin("ble", false);
+  preferences.remove("use_custom_mac");
+  preferences.remove("custom_mac");
+  preferences.remove("vendor_id");
+  preferences.remove("product_id");
+  preferences.remove("version_id");
+  preferences.remove("device_name");
+  preferences.remove("battery_level");
+  preferences.remove("custom_mac");
+  preferences.end();
+  
+  // Reset to defaults
+  useCustomMac = false;
+  vendorId = HID_VENDOR_ID;
+  productId = HID_PRODUCT_ID;
+  versionId = HID_VERSION_ID;
+  deviceName = BLE_DEVICE_NAME;
+  batteryLevel = BLE_INITIAL_BATTERY_LEVEL;
+  memset(customMacAddress, 0, 6);
+}
+
+void BleRemoteControl::printConfiguration() {
+  Serial.println("BLE Device Configuration:");
+  Serial.println("========================");
+  Serial.printf("Vendor ID: 0x%04X%s\n", getVendorId());
+  Serial.printf("Product ID: 0x%04X%s\n", getProductId());
+  Serial.printf("Version ID: 0x%04X%s\n", getVersionId());
+  Serial.printf("Device Name: %s%s\n", getDeviceName().c_str());
+  Serial.printf("Battery Level: %d%%%s\n", batteryLevel);
+  Serial.printf("MAC Address: %s%s\n", getCurrentMacAddressString().c_str());
+  Serial.println();
+}
+
+bool BleRemoteControl::saveConfiguration() {
+  saveConfig();
+  Serial.println("BLE device configuration saved to preferences");
+  return true;
+}
+
+bool BleRemoteControl::loadConfiguration() {
+  loadConfig();
+  Serial.println("BLE device configuration loaded from preferences");
+  Serial.printf("Version ID: 0x%04X%s\n", getVersionId());
+  Serial.printf("Device Name: %s%s\n", getDeviceName().c_str());
+  Serial.printf("Battery Level: %d%%%s\n", batteryLevel);
+  Serial.printf("MAC Address: %s%s\n", getCurrentMacAddressString().c_str());
+  Serial.println();
+  return true;
 }
